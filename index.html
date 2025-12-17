@@ -12,7 +12,7 @@
 </head>
 
 <body>
-    <a-scene background="color: #050505" fog="type: exponential; density: 0.15; color: #111" training-manager>
+    <a-scene background="color: #111111" fog="type: exponential; density: 0.05; color: #333" training-manager>
         
         <a-assets>
             <img id="rust" src="https://cdn.glitch.global/e80674d4-5c91-4560-934c-645373307567/rust-texture.jpg?v=1646245000000" crossorigin="anonymous"> 
@@ -79,7 +79,10 @@
             proximity-hazard="target: #hose-hazard; threshold: 2; sound: #hissing-sound">
             
             <a-entity id="camera" camera position="0 1.6 0" look-controls>
-                <a-entity light="type: spot; angle: 30; penumbra: 0.5; intensity: 1.5; castShadow: true; distance: 15" position="0 0 0"></a-entity>
+                <a-entity 
+                    light="type: spot; angle: 45; penumbra: 0.5; intensity: 3.0; castShadow: true; distance: 20; color: #FFFFFF" 
+                    position="0 0 0">
+                </a-entity>
             </a-entity>
 
             <a-entity laser-controls="hand: right" super-hands grab-controller turn-controller vive-controls="hand: right" oculus-touch-controls="hand: right" windows-motion-controls="hand: right"></a-entity>
