@@ -1,111 +1,301 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Confined Space VR Training Module</title>
-    <meta name="description" content="A-Frame WebXR Confined Space Training Simulator">
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-super-hands-component@5.0.1/dist/super-hands.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confined Space Entry VR Training</title>
+    <link rel="stylesheet" href="style.css">
     
-    <link rel="stylesheet" type="text/css" href="style.css">
-    <script src="js/main.js"></script> 
+    <!-- A-Frame Core -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    
+    <!-- A-Frame Extras (for movement-controls) -->
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    
+    <!-- A-Frame Super Hands (for interaction) -->
+    <script src="https://unpkg.com/super-hands@3.0.3/dist/super-hands.min.js"></script>
+    
+    <!-- Custom Components -->
+    <script src="js/main.js"></script>
 </head>
-
 <body>
-    <a-scene background="color: #111111" fog="type: exponential; density: 0.05; color: #333" training-manager>
+    <!-- 2D UI Overlay -->
+    <div id="ui-overlay">
+        <div id="task-panel">
+            <h2>Confined Space Entry Training</h2>
+            <div id="task-list">
+                <div class="task" id="task-1">
+                    <span class="task-number">1.</span>
+                    <span class="task-text">Test atmosphere with gas meter</span>
+                    <span class="task-status">⏳</span>
+                </div>
+                <div class="task" id="task-2">
+                    <span class="task-number">2.</span>
+                    <span class="task-text">Identify hazards in the space</span>
+                    <span class="task-status">⏳</span>
+                </div>
+                <div class="task" id="task-3">
+                    <span class="task-number">3.</span>
+                    <span class="task-text">Isolate energy source (turn valve)</span>
+                    <span class="task-status">⏳</span>
+                </div>
+                <div class="task" id="task-4">
+                    <span class="task-number">4.</span>
+                    <span class="task-text">Verify isolation complete</span>
+                    <span class="task-status">⏳</span>
+                </div>
+            </div>
+        </div>
         
+        <div id="hazard-warning" style="display: none;">
+            <h3>⚠️ HAZARD IDENTIFIED ⚠️</h3>
+            <p>Leaking pressurized hose detected</p>
+            <p>Isolate energy source before proceeding</p>
+        </div>
+        
+        <div id="completion-panel" style="display: none;">
+            <h2>✓ TRAINING COMPLETE</h2>
+            <p>All confined space entry procedures completed successfully</p>
+            <button onclick="location.reload()">Restart Training</button>
+        </div>
+    </div>
+
+    <!-- A-Frame Scene -->
+    <a-scene 
+        loading-screen="enabled: false"
+        training-manager
+        cursor="rayOrigin: mouse">
+        
+        <!-- Asset Management -->
         <a-assets>
-            <img id="rust" src="assets/rust-texture.jpg" crossorigin="anonymous"> 
-            <audio id="hissing-sound" src="assets/hissing-leak-loop.mp3" preload="auto" crossorigin="anonymous"></audio>
+            <!-- Textures (reference local assets folder) -->
+            <img id="wall-texture" src="assets/concrete.jpg" crossorigin="anonymous">
+            <img id="floor-texture" src="assets/metal-floor.jpg" crossorigin="anonymous">
+            
+            <!-- Audio -->
+            <audio id="hiss-sound" src="assets/gas-hiss.mp3" preload="auto"></audio>
+            <audio id="valve-sound" src="assets/valve-turn.mp3" preload="auto"></audio>
         </a-assets>
 
-        <a-plane position="-3 2.5 -5" width="2.5" height="1.5" color="#333344" opacity="0.8">
-            <a-text value="CONFINED SPACE ENTRY: TASK LIST" width="2.2" position="0 0.6 0.01" align="center" color="#FFFFAA"></a-text>
-            <a-text id="task-1" value="[ ] 1. Test atmosphere with gas meter (Required)" width="2.2" position="-1.0 0.3 0.01" align="left" color="#AAAAFF"></a-text>
-            <a-text id="task-2" value="[ ] 2. Identify potential hazards (Leaking hose)" width="2.2" position="-1.0 0.1 0.01" align="left" color="#AAAAFF"></a-text>
-            <a-text id="task-3" value="[ ] 3. Communicate findings to attendant" width="2.2" position="-1.0 -0.1 0.01" align="left" color="#AAAAFF"></a-text>
-            <a-text id="task-4" value="[ ] 4. Isolate hazard using valve" width="2.2" position="-1.0 -0.3 0.01" align="left" color="#AAAAFF"></a-text>
-        </a-plane>
-
-        <a-plane 
-            id="hazard-ui" position="0 2 -2" width="3" height="1.5" color="red" opacity="0.9"
-            look-at-camera visible="false">
-            <a-text value="!!! IMMEDIATE HAZARD DETECTED !!!" width="2.8" position="0 0.5 0.01" align="center" color="yellow"></a-text>
-            <a-text value="LEAKING HOSE: Potential Flammable/Toxic Gas" width="2.8" position="0 0.2 0.01" align="center" color="#fff"></a-text>
-            <a-text value="ACTION: RETREAT and ISOLATE LEAK using valve." width="2.8" position="0 -0.2 0.01" align="center" color="#fff"></a-text>
-        </a-plane>
-        
-        <a-plane 
-            id="completion-ui" position="0 2 -3" width="4" height="1.5" color="#006600" opacity="0.9"
-            look-at-camera visible="false">
-            <a-text value="TRAINING COMPLETE!" width="3.8" position="0 0.5 0.01" align="center" color="#FFFFFF"></a-text>
-            <a-text value="All tasks successfully performed. Hazard Isolated." width="3.8" position="0 0.2 0.01" align="center" color="#FFFFFF"></a-text>
-            <a-text value="Review steps and exit confined space." width="3.8" position="0 -0.2 0.01" align="center" color="#FFFFFF"></a-text>
-        </a-plane>
-
-        <a-box 
-            id="gas-meter" 
-            position="1.5 0.5 -1.5" 
-            width="0.3" height="0.2" depth="0.1" 
-            color="#00FF00" material="roughness: 0.1" 
-            grabbable 
-            event-set__grab="event: grab-start; _target: a-scene; emit: meter-grabbed;"
-            shadow="cast: true">
-            <a-plane position="0 0.02 0.051" width="0.2" height="0.1" color="#000000"></a-plane>
-            <a-text value="GAS METER\nO2: 20.9% LEL: 0%" width="0.18" position="0 0.02 0.06" align="center" color="#00FFFF"></a-text>
-        </a-box>
-
-        <a-cylinder 
-          position="0 1.6 -10" 
-          rotation="0 0 90" 
-          radius="1.2" 
-          height="40" 
-          color="#2A2A2A" 
-          material="roughness: 1; side: double; src: #rust; repeat: 10 4" 
-          shadow="receive: true">
-        </a-cylinder>
-
-        <a-cylinder position="0 5 0" radius="0.8" height="2" color="#111" open-ended="true" side="double"></a-cylinder>
-        <a-circle position="0 6 0" radius="0.8" rotation="-90 0 0" color="#fff" opacity="0.8" material="emissive: #fff; emissiveIntensity: 2"></a-circle>
-        <a-cone position="0 3 0" radius-bottom="1.5" radius-top="0.8" height="6" color="#fff" opacity="0.05" segments-radial="8"></a-cone>
-
-        <a-cylinder id="main-pipe" position="-2.5 1.6 -10" rotation="90 0 0" radius="0.2" height="40" color="#8B4513" roughness="0.6" shadow="cast: true"></a-cylinder>
-        <a-cylinder position="2.5 1.6 -10" rotation="90 0 0" radius="0.1" height="40" color="#EEEEEE" roughness="0.3" shadow="cast: true"></a-cylinder>
-
-        <a-torus 
-            id="isolation-valve" 
-            position="-2.5 1.6 0.0" 
-            rotation="90 0 0" 
-            radius="0.5" radius-tubular="0.05" 
-            segments-radial="16" color="#AAAAAA" 
-            grabbable turnable valve-logic shadow="cast: true">
-        </a-torus>
-
-        <a-torus 
-            id="hose-hazard" position="-1 0.1 -3" rotation="90 0 0" radius="0.5" 
-            radius-tubular="0.05" color="yellow" shadow="cast: true">
-        </a-torus>
-        
-        <a-tube path="-1 0 -1, 0 0 -2, 1 0 -3" radius="0.05" material="color: red"></a-tube>
-        <a-cylinder position="1 0.1 -5" rotation="0 0 90" radius="0.04" height="3" color="red" segments-radial="6"></a-cylinder>
-
-        <a-entity 
-            id="rig" 
-            movement-controls="speed: 0.03"
-            proximity-hazard="target: #hose-hazard; threshold: 2; sound: #hissing-sound">
+        <!-- Lighting -->
+        <a-entity id="rig" 
+                  movement-controls="speed: 0.03; fly: false" 
+                  position="0 1.6 5">
             
-            <a-entity id="camera" camera position="0 1.6 0" look-controls>
-                <a-entity 
-                    light="type: spot; angle: 45; penumbra: 0.5; intensity: 3.0; castShadow: true; distance: 20; color: #FFFFFF" 
-                    position="0 0 0">
+            <!-- Camera with headlamp -->
+            <a-entity id="camera" 
+                      camera 
+                      look-controls="pointerLockEnabled: true"
+                      position="0 0 0">
+                
+                <!-- Headlamp spotlight -->
+                <a-light type="spot" 
+                         intensity="3.0" 
+                         angle="45" 
+                         penumbra="0.2"
+                         distance="15"
+                         decay="2"
+                         color="#fff8e1"
+                         position="0 0 0"
+                         rotation="0 0 0"></a-light>
+                
+                <!-- VR Controllers -->
+                <a-entity id="left-hand" 
+                          hand-controls="hand: left"
+                          super-hands="colliderEvent: raycaster-intersection;
+                                     colliderEventProperty: els;
+                                     colliderEndEvent: raycaster-intersection-cleared;
+                                     colliderEndEventProperty: clearedEls;">
+                </a-entity>
+                
+                <a-entity id="right-hand" 
+                          hand-controls="hand: right"
+                          super-hands="colliderEvent: raycaster-intersection;
+                                     colliderEventProperty: els;
+                                     colliderEndEvent: raycaster-intersection-cleared;
+                                     colliderEndEventProperty: clearedEls;">
                 </a-entity>
             </a-entity>
-
-            <a-entity laser-controls="hand: right" super-hands grab-controller turn-controller vive-controls="hand: right" oculus-touch-controls="hand: right" windows-motion-controls="hand: right"></a-entity>
-            <a-entity laser-controls="hand: left" super-hands grab-controller turn-controller vive-controls="hand: left" oculus-touch-controls="hand: left" windows-motion-controls="hand: left"></a-entity>
-            
         </a-entity>
 
+        <!-- Ambient lighting (very dim for confined space feel) -->
+        <a-light type="ambient" intensity="0.1" color="#4a5f7f"></a-light>
+
+        <!-- Confined Space Environment -->
+        <!-- Main tunnel (narrow cylinder) -->
+        <a-cylinder id="tunnel" 
+                    radius="1.2" 
+                    height="12" 
+                    position="0 0 -3"
+                    rotation="0 0 90"
+                    color="#2a2a2a"
+                    metalness="0.7"
+                    roughness="0.8"
+                    side="back"
+                    shadow="receive: true">
+        </a-cylinder>
+
+        <!-- End caps -->
+        <a-circle position="-6 0 -3" 
+                  rotation="0 90 0" 
+                  radius="1.2" 
+                  color="#1a1a1a"
+                  metalness="0.5"
+                  roughness="0.9"></a-circle>
+        
+        <a-circle position="6 0 -3" 
+                  rotation="0 -90 0" 
+                  radius="1.2" 
+                  color="#1a1a1a"
+                  metalness="0.5"
+                  roughness="0.9"></a-circle>
+
+        <!-- Floor grating effect -->
+        <a-plane position="0 -1.2 -3" 
+                 rotation="-90 0 0" 
+                 width="12" 
+                 height="2.4" 
+                 color="#3a3a3a"
+                 metalness="0.8"
+                 roughness="0.6"
+                 shadow="receive: true"></a-plane>
+
+        <!-- Pipes along walls -->
+        <a-cylinder position="0 0.8 -2.0" 
+                    radius="0.05" 
+                    height="10" 
+                    rotation="0 0 90"
+                    color="#c0c0c0"
+                    metalness="0.9"
+                    roughness="0.3"></a-cylinder>
+        
+        <a-cylinder position="0 -0.8 -4.0" 
+                    radius="0.05" 
+                    height="10" 
+                    rotation="0 0 90"
+                    color="#c0c0c0"
+                    metalness="0.9"
+                    roughness="0.3"></a-cylinder>
+
+        <!-- Training Equipment & Hazards -->
+        
+        <!-- Gas Meter (Task 1 - grabbable) -->
+        <a-entity id="gas-meter" 
+                  position="-0.5 0.8 3"
+                  geometry="primitive: box; width: 0.15; height: 0.25; depth: 0.05"
+                  material="color: #00ff00; metalness: 0.6; roughness: 0.4"
+                  hoverable
+                  grabbable
+                  stretchable
+                  draggable
+                  gas-meter>
+            <!-- Screen -->
+            <a-box position="0 0.05 0.026" 
+                   width="0.12" 
+                   height="0.15" 
+                   depth="0.001"
+                   color="#001a00"></a-box>
+            <!-- Display text -->
+            <a-text value="O2: 20.9%\nLEL: 0%\nH2S: 0ppm" 
+                    position="0 0.05 0.027"
+                    align="center"
+                    width="0.3"
+                    color="#00ff00"></a-text>
+        </a-entity>
+
+        <!-- Leaking Hose (Task 2 - hazard identification) -->
+        <a-entity id="hazard-zone" position="2 -0.3 -2">
+            <!-- Hose -->
+            <a-cylinder position="0 0 0" 
+                        radius="0.03" 
+                        height="0.6"
+                        rotation="45 0 30"
+                        color="#ff4444"
+                        metalness="0.5"
+                        roughness="0.7"></a-cylinder>
+            
+            <!-- Leak particle effect -->
+            <a-entity id="leak-particles"
+                      position="0.2 0.2 0"
+                      particle-system="preset: dust; 
+                                     color: #ffffff, #cccccc;
+                                     particleCount: 100;
+                                     maxAge: 2;
+                                     size: 0.5;
+                                     velocityValue: 0.5 0.5 0.5;
+                                     velocitySpread: 0.3 0.3 0.3;
+                                     accelerationValue: 0 0.2 0">
+            </a-entity>
+            
+            <!-- Proximity detector -->
+            <a-box position="0 0 0"
+                   width="1.5"
+                   height="1.5"
+                   depth="1.5"
+                   visible="false"
+                   hazard-detector></a-box>
+        </a-entity>
+
+        <!-- Isolation Valve (Tasks 3 & 4 - turnable) -->
+        <a-entity id="isolation-valve" position="3 0.2 -4">
+            <!-- Valve body -->
+            <a-cylinder radius="0.1" 
+                        height="0.3"
+                        color="#666666"
+                        metalness="0.8"
+                        roughness="0.4"></a-cylinder>
+            
+            <!-- Valve wheel (the interactive part) -->
+            <a-entity id="valve-wheel"
+                      position="0 0.2 0"
+                      geometry="primitive: torus; radius: 0.15; radiusTubular: 0.02"
+                      material="color: #ff6600; metalness: 0.7; roughness: 0.5"
+                      hoverable
+                      grabbable
+                      rotatable="rotation-axis: y"
+                      valve-controller>
+                <!-- Wheel spokes -->
+                <a-box position="0 0 0" width="0.3" height="0.02" depth="0.02" color="#ff6600"></a-box>
+                <a-box position="0 0 0" width="0.02" height="0.02" depth="0.3" color="#ff6600" rotation="0 90 0"></a-box>
+            </a-entity>
+            
+            <!-- Label -->
+            <a-text value="ISOLATION\nVALVE" 
+                    position="0 0.5 0"
+                    align="center"
+                    width="0.8"
+                    color="#ffff00"></a-text>
+        </a-entity>
+
+        <!-- Warning Signs -->
+        <a-entity position="-0.8 0.5 0">
+            <a-plane width="0.4" 
+                     height="0.4" 
+                     color="#ffff00"
+                     rotation="0 45 0"></a-plane>
+            <a-text value="⚠️\nCONFINED\nSPACE" 
+                    position="0 0 0.01"
+                    align="center"
+                    width="0.8"
+                    color="#000000"
+                    rotation="0 45 0"></a-text>
+        </a-entity>
+
+        <!-- Emergency exit marker -->
+        <a-plane position="0 0.5 5.5" 
+                 width="0.6" 
+                 height="0.3"
+                 color="#00ff00"
+                 rotation="0 180 0">
+            <a-text value="← EXIT" 
+                    position="0 0 0.01"
+                    align="center"
+                    width="1.5"
+                    color="#000000"></a-text>
+        </a-plane>
+
+        <!-- Sky (dark for confined space) -->
+        <a-sky color="#0a0a0a"></a-sky>
     </a-scene>
 </body>
 </html>
