@@ -15,11 +15,8 @@
     <a-scene background="color: #111111" fog="type: exponential; density: 0.05; color: #333" training-manager>
         
         <a-assets>
-            <img id="rust" src="https://cdn.glitch.global/e80674d4-5c91-4560-934c-645373307567/rust-texture.jpg?v=1646245000000" crossorigin="anonymous"> 
-            <audio id="hissing-sound" src="https://cdn.glitch.global/e80674d4-5c91-4560-934c-645373307567/hissing-leak-loop.mp3?v=1646245000000" preload="auto" crossorigin="anonymous"></audio>
-
-            <a-asset-item id="valve-model" src="https://cdn.aframe.io/examples/showcase/valve.gltf" crossorigin="anonymous"></a-asset-item>
-            <a-asset-item id="gas-meter-model" src="https://cdn.aframe.io/examples/showcase/gas-monitor.gltf" crossorigin="anonymous"></a-asset-item>
+            <img id="rust" src="assets/rust-texture.jpg" crossorigin="anonymous"> 
+            <audio id="hissing-sound" src="assets/hissing-leak-loop.mp3" preload="auto" crossorigin="anonymous"></audio>
         </a-assets>
 
         <a-plane position="-3 2.5 -5" width="2.5" height="1.5" color="#333344" opacity="0.8">
@@ -46,16 +43,17 @@
             <a-text value="Review steps and exit confined space." width="3.8" position="0 -0.2 0.01" align="center" color="#FFFFFF"></a-text>
         </a-plane>
 
-        <a-entity 
-            id="gas-meter"
-            gltf-model="#gas-meter-model"
-            position="1.5 0.1 -1.5" 
-            rotation="-90 0 0" 
-            scale="0.3 0.3 0.3" 
+        <a-box 
+            id="gas-meter" 
+            position="1.5 0.5 -1.5" 
+            width="0.3" height="0.2" depth="0.1" 
+            color="#00FF00" material="roughness: 0.1" 
             grabbable 
             event-set__grab="event: grab-start; _target: a-scene; emit: meter-grabbed;"
             shadow="cast: true">
-        </a-entity>
+            <a-plane position="0 0.02 0.051" width="0.2" height="0.1" color="#000000"></a-plane>
+            <a-text value="GAS METER\nO2: 20.9% LEL: 0%" width="0.18" position="0 0.02 0.06" align="center" color="#00FFFF"></a-text>
+        </a-box>
 
         <a-cylinder 
           position="0 1.6 -10" 
@@ -74,14 +72,14 @@
         <a-cylinder id="main-pipe" position="-2.5 1.6 -10" rotation="90 0 0" radius="0.2" height="40" color="#8B4513" roughness="0.6" shadow="cast: true"></a-cylinder>
         <a-cylinder position="2.5 1.6 -10" rotation="90 0 0" radius="0.1" height="40" color="#EEEEEE" roughness="0.3" shadow="cast: true"></a-cylinder>
 
-        <a-entity 
+        <a-torus 
             id="isolation-valve" 
-            gltf-model="#valve-model"
             position="-2.5 1.6 0.0" 
             rotation="90 0 0" 
-            scale="0.8 0.8 0.8" 
+            radius="0.5" radius-tubular="0.05" 
+            segments-radial="16" color="#AAAAAA" 
             grabbable turnable valve-logic shadow="cast: true">
-        </a-entity>
+        </a-torus>
 
         <a-torus 
             id="hose-hazard" position="-1 0.1 -3" rotation="90 0 0" radius="0.5" 
