@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Confined Space Entry VR Training</title>
+    <title>Confined Space Entry VR Training - Drainage System</title>
     <link rel="stylesheet" href="style.css">
     
     <!-- A-Frame Core -->
@@ -14,13 +14,21 @@
     
     <!-- A-Frame Super Hands (for interaction) -->
     <script src="https://unpkg.com/super-hands@3.0.3/dist/super-hands.min.js"></script>
+    
+    <!-- A-Frame Physics (for realistic interactions) -->
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.0.1/dist/aframe-physics-system.min.js"></script>
 </head>
 <body>
     <!-- 2D UI Overlay -->
     <div id="ui-overlay">
         <div id="task-panel">
-            <h2>Confined Space Entry Training</h2>
+            <h2>Drainage System Inspection Training</h2>
             <div id="task-list">
+                <div class="task" id="task-0">
+                    <span class="task-number">0.</span>
+                    <span class="task-text">Open the gutter access lid</span>
+                    <span class="task-status">⏳</span>
+                </div>
                 <div class="task" id="task-1">
                     <span class="task-number">1.</span>
                     <span class="task-text">Test atmosphere with gas meter</span>
@@ -46,7 +54,7 @@
         
         <div id="hazard-warning" style="display: none;">
             <h3>⚠️ HAZARD IDENTIFIED ⚠️</h3>
-            <p>Leaking pressurized hose detected</p>
+            <p>Leaking pressurized pipe detected</p>
             <p>Isolate energy source before proceeding</p>
         </div>
         
@@ -55,330 +63,163 @@
             <p>All confined space entry procedures completed successfully</p>
             <button onclick="location.reload()">Restart Training</button>
         </div>
+        
+        <div id="instruction-panel">
+            <p>💡 Click objects to interact | WASD to move | Mouse to look</p>
+        </div>
     </div>
 
     <!-- A-Frame Scene -->
     <a-scene 
         vr-mode-ui="enabled: true"
         renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true"
+        physics="gravity: -9.8"
         training-manager
         shadow="type: pcf; autoUpdate: true">
         
         <!-- Asset Management -->
-        <a-assets timeout="10000">
-            <audio id="hiss-sound" preload="auto"></audio>
-            <audio id="valve-sound" preload="auto"></audio>
+        <a-assets timeout="15000">
+            <!-- Textures -->
+            <img id="concrete-texture" src="assets/concrete.jpg" crossorigin="anonymous">
+            <img id="metal-texture" src="assets/metal-floor.jpg" crossorigin="anonymous">
+            <img id="grass-texture" src="assets/grass.jpg" crossorigin="anonymous">
+            <img id="brick-texture" src="assets/brick.jpg" crossorigin="anonymous">
+            
+            <!-- Audio -->
+            <audio id="hiss-sound" src="assets/gas-hiss.mp3" preload="auto"></audio>
+            <audio id="valve-sound" src="assets/valve-turn.mp3" preload="auto"></audio>
+            <audio id="metal-sound" src="assets/metal-clang.mp3" preload="auto"></audio>
         </a-assets>
 
-        <!-- Enhanced Lighting Setup -->
-        <!-- Main overhead lights -->
+        <!-- OUTDOOR ENVIRONMENT - Street Level -->
+        <!-- Sky with clouds -->
+        <a-sky color="#87CEEB" 
+               material="shader: gradient; topColor: #87CEEB; bottomColor: #E0F6FF">
+        </a-sky>
+        
+        <!-- Clouds -->
+        <a-entity id="clouds">
+            <a-sphere position="10 20 -30" radius="8" color="#ffffff" opacity="0.7"
+                     animation="property: position; to: -30 20 -30; dur: 60000; loop: true; easing: linear"></a-sphere>
+            <a-sphere position="15 22 -35" radius="6" color="#ffffff" opacity="0.6"
+                     animation="property: position; to: -25 22 -35; dur: 65000; loop: true; easing: linear"></a-sphere>
+            <a-sphere position="-20 25 -40" radius="10" color="#ffffff" opacity="0.8"
+                     animation="property: position; to: 20 25 -40; dur: 70000; loop: true; easing: linear"></a-sphere>
+            <a-sphere position="5 18 -25" radius="7" color="#ffffff" opacity="0.5"
+                     animation="property: position; to: -35 18 -25; dur: 55000; loop: true; easing: linear"></a-sphere>
+        </a-entity>
+
+        <!-- Sun -->
         <a-light type="directional" 
-                 intensity="0.8" 
-                 position="2 4 0" 
-                 target="#tunnel"
+                 intensity="0.9" 
+                 position="5 10 2" 
                  castShadow="true"
                  shadow-camera-visible="false"
-                 shadow-camera-near="0.1"
-                 shadow-camera-far="10"
+                 shadow-camera-top="15"
+                 shadow-camera-bottom="-15"
+                 shadow-camera-left="-15"
+                 shadow-camera-right="15"
                  color="#ffffee"></a-light>
         
-        <a-light type="directional" 
-                 intensity="0.6" 
-                 position="-2 4 -3" 
-                 castShadow="true"
-                 color="#ffffee"></a-light>
+        <a-light type="ambient" intensity="0.5" color="#b0c4de"></a-light>
 
-        <!-- Ambient lighting for overall brightness -->
-        <a-light type="ambient" intensity="0.6" color="#f0f0f0"></a-light>
-
-        <!-- Point lights for additional illumination -->
-        <a-light type="point" intensity="1.2" distance="5" position="0 2 2" color="#ffffff"></a-light>
-        <a-light type="point" intensity="1.2" distance="5" position="0 2 -4" color="#ffffff"></a-light>
-
-        <!-- Player Rig with Collision -->
-        <a-entity id="rig" 
-                  movement-controls="speed: 0.03; fly: false; constrainToNavMesh: false" 
-                  position="0 0 3.5"
-                  collision-player>
-            
-            <!-- Camera with headlamp -->
-            <a-entity id="camera" 
-                      camera 
-                      look-controls="pointerLockEnabled: false; touchEnabled: true"
-                      position="0 1.6 0">
-                
-                <!-- Headlamp spotlight -->
-                <a-light type="spot" 
-                         intensity="2.0" 
-                         angle="40" 
-                         penumbra="0.3"
-                         distance="10"
-                         decay="1.5"
-                         color="#fff8e1"
-                         position="0 0 0.2"
-                         rotation="0 0 0"
-                         castShadow="true"></a-light>
-                
-                <!-- VR Controllers with better interaction -->
-                <a-entity id="left-hand" 
-                          hand-controls="hand: left; handModelStyle: lowPoly"
-                          laser-controls="hand: left"
-                          raycaster="objects: .interactive; far: 3"
-                          super-hands="colliderEvent: raycaster-intersection;
-                                     colliderEventProperty: els;
-                                     colliderEndEvent: raycaster-intersection-cleared;
-                                     colliderEndEventProperty: clearedEls;">
-                </a-entity>
-                
-                <a-entity id="right-hand" 
-                          hand-controls="hand: right; handModelStyle: lowPoly"
-                          laser-controls="hand: right"
-                          raycaster="objects: .interactive; far: 3"
-                          super-hands="colliderEvent: raycaster-intersection;
-                                     colliderEventProperty: els;
-                                     colliderEndEvent: raycaster-intersection-cleared;
-                                     colliderEndEventProperty: clearedEls;">
-                </a-entity>
-            </a-entity>
-        </a-entity>
-
-        <!-- CONFINED SPACE ENVIRONMENT -->
-        <!-- Main tunnel (narrow cylinder with collision) - RADIUS 1.2m -->
-        <a-cylinder id="tunnel" 
-                    radius="1.2" 
-                    height="8" 
-                    position="0 1.6 0"
-                    rotation="0 0 90"
-                    color="#d4d4d4"
-                    metalness="0.4"
-                    roughness="0.6"
-                    side="back"
-                    shadow="receive: true"
-                    static-body>
-        </a-cylinder>
-
-        <!-- Tunnel end caps with collision -->
-        <a-circle position="-4 1.6 0" 
-                  rotation="0 90 0" 
-                  radius="1.2" 
-                  color="#b0b0b0"
-                  metalness="0.3"
-                  roughness="0.7"
-                  static-body></a-circle>
-        
-        <a-circle position="4 1.6 0" 
-                  rotation="0 -90 0" 
-                  radius="1.2" 
-                  color="#b0b0b0"
-                  metalness="0.3"
-                  roughness="0.7"
-                  static-body></a-circle>
-
-        <!-- Floor - Metallic grating with collision -->
-        <a-plane id="floor"
+        <!-- Street Surface -->
+        <a-plane id="street" 
                  position="0 0 0" 
                  rotation="-90 0 0" 
-                 width="8" 
-                 height="2.4" 
-                 color="#8a8a8a"
-                 metalness="0.7"
-                 roughness="0.5"
+                 width="30" 
+                 height="30" 
+                 color="#505050"
+                 material="roughness: 0.9; metalness: 0.1"
                  shadow="receive: true"
-                 static-body>
-            <!-- Grid pattern for floor -->
-            <a-entity position="0 0 0.01">
-                <a-plane width="7.8" height="2.2" color="#707070" wireframe="true"></a-plane>
-            </a-entity>
-        </a-plane>
+                 static-body></a-plane>
 
-        <!-- Ceiling -->
-        <a-plane position="0 3.2 0" 
-                 rotation="90 0 0" 
-                 width="8" 
-                 height="2.4" 
-                 color="#c0c0c0"
-                 metalness="0.5"
-                 roughness="0.6"
-                 shadow="receive: true"></a-plane>
+        <!-- Sidewalk -->
+        <a-box position="-8 0.05 0" 
+               width="5" 
+               height="0.1" 
+               depth="30"
+               color="#cccccc"
+               shadow="receive: true"></a-box>
 
-        <!-- Industrial Pipes along walls -->
-        <a-entity id="pipe-system">
-            <!-- Top pipe -->
-            <a-cylinder position="0 2.8 0.9" 
-                        radius="0.08" 
-                        height="7.5" 
-                        rotation="0 0 90"
-                        color="#4a4a4a"
-                        metalness="0.9"
-                        roughness="0.2"
-                        shadow="cast: true; receive: true">
-                <!-- Pipe joints -->
-                <a-sphere position="-3 0 0" radius="0.12" color="#3a3a3a" metalness="0.9"></a-sphere>
-                <a-sphere position="0 0 0" radius="0.12" color="#3a3a3a" metalness="0.9"></a-sphere>
-                <a-sphere position="3 0 0" radius="0.12" color="#3a3a3a" metalness="0.9"></a-sphere>
-            </a-cylinder>
+        <!-- Market Building -->
+        <a-entity id="market-building" position="-12 0 0">
+            <a-box width="8" height="5" depth="20" 
+                   color="#d4a574"
+                   material="src: #brick-texture; repeat: 4 2"
+                   shadow="cast: true; receive: true"></a-box>
             
-            <!-- Bottom pipe -->
-            <a-cylinder position="0 0.4 -0.9" 
-                        radius="0.08" 
-                        height="7.5" 
-                        rotation="0 0 90"
-                        color="#4a4a4a"
-                        metalness="0.9"
-                        roughness="0.2"
-                        shadow="cast: true; receive: true">
-                <a-sphere position="-3 0 0" radius="0.12" color="#3a3a3a" metalness="0.9"></a-sphere>
-                <a-sphere position="0 0 0" radius="0.12" color="#3a3a3a" metalness="0.9"></a-sphere>
-                <a-sphere position="3 0 0" radius="0.12" color="#3a3a3a" metalness="0.9"></a-sphere>
-            </a-cylinder>
-
-            <!-- Side support pipes -->
-            <a-cylinder position="0.9 1.6 -1.5" 
-                        radius="0.05" 
-                        height="3.2" 
-                        rotation="0 0 0"
-                        color="#5a5a5a"
-                        metalness="0.8"
-                        roughness="0.3"></a-cylinder>
-            
-            <a-cylinder position="-0.9 1.6 1.5" 
-                        radius="0.05" 
-                        height="3.2" 
-                        rotation="0 0 0"
-                        color="#5a5a5a"
-                        metalness="0.8"
-                        roughness="0.3"></a-cylinder>
-        </a-entity>
-
-        <!-- TRAINING EQUIPMENT & HAZARDS -->
-        
-        <!-- Gas Meter (Task 1) - Fixed position -->
-        <a-entity id="gas-meter" 
-                  position="-0.6 1.2 2.5"
-                  geometry="primitive: box; width: 0.15; height: 0.25; depth: 0.05"
-                  material="color: #00ff00; metalness: 0.6; roughness: 0.4"
-                  shadow="cast: true"
-                  hoverable
-                  grabbable
-                  stretchable
-                  draggable
-                  gas-meter
-                  class="interactive">
-            <!-- Screen -->
-            <a-box position="0 0.05 0.026" 
-                   width="0.12" 
-                   height="0.15" 
-                   depth="0.001"
-                   color="#001a00"></a-box>
-            <!-- Display text -->
-            <a-text value="O2: 20.9%\nLEL: 0%\nH2S: 0ppm" 
-                    position="0 0.05 0.027"
-                    align="center"
-                    width="0.3"
-                    color="#00ff00"></a-text>
-            <!-- Indicator light -->
-            <a-sphere position="0 0.15 0.026" 
-                      radius="0.015" 
-                      color="#00ff00"
-                      material="emissive: #00ff00; emissiveIntensity: 0.8"></a-sphere>
-        </a-entity>
-
-        <!-- Leaking Hose (Task 2) - Fixed position -->
-        <a-entity id="hazard-zone" position="0.7 0.8 -1.5">
-            <!-- Hose connection -->
-            <a-cylinder position="0 0 0" 
-                        radius="0.04" 
-                        height="0.7"
-                        rotation="45 15 30"
-                        color="#cc0000"
-                        metalness="0.5"
-                        roughness="0.7"
-                        shadow="cast: true"></a-cylinder>
-            
-            <!-- Leak visual effect -->
-            <a-entity id="leak-particles" position="0.3 0.3 0">
-                <a-sphere radius="0.08" color="#ffffff" opacity="0.4" position="0 0 0"
-                          animation="property: scale; to: 1.5 1.5 1.5; dur: 1000; loop: true; easing: easeOutQuad"></a-sphere>
-                <a-sphere radius="0.06" color="#e0e0e0" opacity="0.3" position="0.1 0.1 0.1"
-                          animation="property: scale; to: 1.8 1.8 1.8; dur: 1200; loop: true; easing: easeOutQuad; delay: 200"></a-sphere>
-                <a-sphere radius="0.07" color="#f0f0f0" opacity="0.3" position="-0.1 0.05 -0.05"
-                          animation="property: scale; to: 1.6 1.6 1.6; dur: 1100; loop: true; easing: easeOutQuad; delay: 400"></a-sphere>
-            </a-entity>
-            
-            <!-- Warning sign -->
-            <a-plane position="0 0.6 0" 
-                     width="0.3" 
-                     height="0.3" 
-                     color="#ffff00"
-                     rotation="0 -20 0">
-                <a-text value="⚠" 
+            <!-- Market Sign -->
+            <a-plane position="0 3 4.1" width="6" height="1.5" color="#ff6600" rotation="0 0 0">
+                <a-text value="MARKET AREA" 
                         position="0 0 0.01"
                         align="center"
-                        width="0.8"
-                        color="#000000"></a-text>
+                        width="8"
+                        color="#ffffff"></a-text>
             </a-plane>
             
-            <!-- Proximity detector -->
-            <a-box position="0 0 0"
-                   width="1.2"
-                   height="1.2"
-                   depth="1.2"
-                   visible="false"
-                   hazard-detector></a-box>
+            <!-- Windows -->
+            <a-box position="-2 2.5 4.05" width="1.5" height="1.8" depth="0.1" color="#87ceeb"></a-box>
+            <a-box position="2 2.5 4.05" width="1.5" height="1.8" depth="0.1" color="#87ceeb"></a-box>
         </a-entity>
 
-        <!-- Isolation Valve (Tasks 3 & 4) - Fixed position -->
-        <a-entity id="isolation-valve" position="-0.5 1.4 -2.5">
-            <!-- Valve body -->
-            <a-cylinder radius="0.12" 
-                        height="0.4"
-                        color="#555555"
-                        metalness="0.8"
-                        roughness="0.4"
-                        shadow="cast: true"></a-cylinder>
+        <!-- Gutter Access Point -->
+        <a-entity id="gutter-access" position="0 0 0">
+            <!-- Gutter frame (concrete) -->
+            <a-box id="gutter-frame" 
+                   position="0 0.1 0" 
+                   width="1.5" 
+                   height="0.2" 
+                   depth="1.5"
+                   color="#808080"
+                   material="src: #concrete-texture; roughness: 0.9"
+                   shadow="cast: true; receive: true"></a-box>
             
-            <!-- Pipe connection -->
-            <a-cylinder position="0 0 0" 
-                        radius="0.06" 
-                        height="0.6"
-                        rotation="0 0 90"
-                        color="#666666"
-                        metalness="0.7"
-                        roughness="0.5"></a-cylinder>
-            
-            <!-- Valve wheel (interactive part) -->
-            <a-entity id="valve-wheel"
-                      position="0 0 0.25"
-                      geometry="primitive: torus; radius: 0.18; radiusTubular: 0.025; segmentsTubular: 16"
-                      material="color: #ff6600; metalness: 0.7; roughness: 0.4"
-                      shadow="cast: true"
-                      hoverable
-                      grabbable
-                      valve-controller
+            <!-- Metal Grate/Lid (Interactive - can be opened) -->
+            <a-entity id="gutter-lid" 
+                      position="0 0.21 0" 
+                      gutter-lid
                       class="interactive">
-                <!-- Wheel spokes -->
-                <a-box position="0 0 0" 
-                       width="0.36" 
-                       height="0.025" 
-                       depth="0.025" 
-                       color="#ff6600"
-                       metalness="0.7"></a-box>
-                <a-box position="0 0 0" 
-                       width="0.025" 
-                       height="0.025" 
-                       depth="0.36" 
-                       color="#ff6600" 
-                       rotation="0 90 0"
-                       metalness="0.7"></a-box>
+                <a-box width="1.3" 
+                       height="0.05" 
+                       depth="1.3"
+                       color="#4a4a4a"
+                       material="src: #metal-texture; metalness: 0.8; roughness: 0.4"
+                       shadow="cast: true"
+                       hoverable
+                       grabbable>
+                </a-box>
+                <!-- Grid pattern -->
+                <a-entity position="0 0.03 0">
+                    <a-box position="-0.4 0 -0.4" width="0.05" height="0.02" depth="1.2" color="#2a2a2a"></a-box>
+                    <a-box position="0 0 -0.4" width="0.05" height="0.02" depth="1.2" color="#2a2a2a"></a-box>
+                    <a-box position="0.4 0 -0.4" width="0.05" height="0.02" depth="1.2" color="#2a2a2a"></a-box>
+                    <a-box position="-0.6 0 -0.4" width="1.2" height="0.02" depth="0.05" color="#2a2a2a" rotation="0 90 0"></a-box>
+                    <a-box position="-0.6 0 0" width="1.2" height="0.02" depth="0.05" color="#2a2a2a" rotation="0 90 0"></a-box>
+                    <a-box position="-0.6 0 0.4" width="1.2" height="0.02" depth="0.05" color="#2a2a2a" rotation="0 90 0"></a-box>
+                </a-entity>
+                
+                <!-- Handle -->
+                <a-torus position="0 0.1 0" 
+                         radius="0.15" 
+                         radius-tubular="0.02"
+                         color="#ffaa00"
+                         material="metalness: 0.9; roughness: 0.3"></a-torus>
+                
+                <a-text value="PULL TO OPEN" 
+                        position="0 0.25 0"
+                        align="center"
+                        width="1.5"
+                        color="#ffff00"></a-text>
             </a-entity>
             
-            <!-- Valve label plate -->
-            <a-plane position="0 0.45 0" 
-                     width="0.5" 
-                     height="0.15"
+            <!-- Warning Sign -->
+            <a-plane position="0.8 0.25 0" 
+                     width="0.4" 
+                     height="0.4" 
                      color="#ffff00"
-                     shadow="cast: true">
-                <a-text value="ISOLATION VALVE" 
+                     rotation="-90 0 0">
+                <a-text value="⚠\nCONFINED\nSPACE" 
                         position="0 0 0.01"
                         align="center"
                         width="1.2"
@@ -386,56 +227,440 @@
             </a-plane>
         </a-entity>
 
-        <!-- Warning Signs -->
-        <a-entity position="-0.8 1.8 1.5" rotation="0 -20 0">
-            <a-plane width="0.5" 
-                     height="0.5" 
-                     color="#ffff00"
-                     shadow="cast: true">
-                <a-triangle position="0 0 0.01"
-                           vertex-a="0 0.2 0"
-                           vertex-b="-0.17 -0.1 0"
-                           vertex-c="0.17 -0.1 0"
-                           color="#000000"></a-triangle>
-                <a-text value="!\nCONFINED\nSPACE" 
-                        position="0 -0.05 0.02"
+        <!-- UNDERGROUND SECTION - Drainage Tunnel -->
+        <a-entity id="underground-section" visible="false" position="0 -5 0">
+            <!-- Access Shaft -->
+            <a-entity id="access-shaft" position="0 2.5 0">
+                <!-- Shaft walls -->
+                <a-cylinder radius="0.8" 
+                            height="5" 
+                            color="#666666"
+                            material="src: #concrete-texture; roughness: 0.9"
+                            side="back"
+                            shadow="receive: true"></a-cylinder>
+                
+                <!-- Metal Ladder -->
+                <a-entity id="ladder" position="0 0 0.7">
+                    <!-- Side rails -->
+                    <a-cylinder position="-0.2 0 0" radius="0.02" height="5" color="#8b4513"></a-cylinder>
+                    <a-cylinder position="0.2 0 0" radius="0.02" height="5" color="#8b4513"></a-cylinder>
+                    
+                    <!-- Rungs -->
+                    <a-cylinder position="0 -2 0" radius="0.015" height="0.4" rotation="0 0 90" color="#8b4513"></a-cylinder>
+                    <a-cylinder position="0 -1.5 0" radius="0.015" height="0.4" rotation="0 0 90" color="#8b4513"></a-cylinder>
+                    <a-cylinder position="0 -1 0" radius="0.015" height="0.4" rotation="0 0 90" color="#8b4513"></a-cylinder>
+                    <a-cylinder position="0 -0.5 0" radius="0.015" height="0.4" rotation="0 0 90" color="#8b4513"></a-cylinder>
+                    <a-cylinder position="0 0 0" radius="0.015" height="0.4" rotation="0 0 90" color="#8b4513"></a-cylinder>
+                    <a-cylinder position="0 0.5 0" radius="0.015" height="0.4" rotation="0 0 90" color="#8b4513"></a-cylinder>
+                    <a-cylinder position="0 1 0" radius="0.015" height="0.4" rotation="0 0 90" color="#8b4513"></a-cylinder>
+                    <a-cylinder position="0 1.5 0" radius="0.015" height="0.4" rotation="0 0 90" color="#8b4513"></a-cylinder>
+                    <a-cylinder position="0 2 0" radius="0.015" height="0.4" rotation="0 0 90" color="#8b4513"></a-cylinder>
+                </a-entity>
+                
+                <!-- Light at shaft bottom -->
+                <a-light type="point" intensity="0.8" distance="5" position="0 -2 0" color="#ffaa00"></a-light>
+            </a-entity>
+
+            <!-- Main Drainage Tunnel -->
+            <a-entity id="drainage-tunnel" position="0 0 -3">
+                <!-- Tunnel cylinder (concrete pipe) -->
+                <a-cylinder id="tunnel" 
+                            radius="1.2" 
+                            height="10" 
+                            position="0 1.6 0"
+                            rotation="0 0 90"
+                            color="#555555"
+                            material="src: #concrete-texture; roughness: 0.95; metalness: 0.1"
+                            side="back"
+                            shadow="receive: true">
+                    <!-- Water stains -->
+                    <a-ring position="0 0 -1.19" 
+                            radius-inner="0.8" 
+                            radius-outer="1.15" 
+                            rotation="0 90 0"
+                            color="#2d5016"
+                            opacity="0.6"></a-ring>
+                </a-cylinder>
+
+                <!-- End caps -->
+                <a-circle position="-5 1.6 0" 
+                          rotation="0 90 0" 
+                          radius="1.2" 
+                          color="#3a3a3a"
+                          material="src: #concrete-texture"></a-circle>
+                
+                <a-circle position="5 1.6 0" 
+                          rotation="0 -90 0" 
+                          radius="1.2" 
+                          color="#3a3a3a"
+                          material="src: #concrete-texture"></a-circle>
+
+                <!-- Floor (wet concrete) -->
+                <a-plane position="0 0 0" 
+                         rotation="-90 0 0" 
+                         width="10" 
+                         height="2.4" 
+                         color="#3a3a3a"
+                         material="src: #concrete-texture; roughness: 0.7; metalness: 0.2"
+                         shadow="receive: true"></a-plane>
+                
+                <!-- Water puddles -->
+                <a-circle position="-2 0.01 0" 
+                          rotation="-90 0 0"
+                          radius="0.5"
+                          color="#1a4d5c"
+                          opacity="0.7"
+                          material="metalness: 0.9; roughness: 0.1"></a-circle>
+                <a-circle position="2 0.01 0.3" 
+                          rotation="-90 0 0"
+                          radius="0.4"
+                          color="#1a4d5c"
+                          opacity="0.7"
+                          material="metalness: 0.9; roughness: 0.1"></a-circle>
+
+                <!-- Realistic Industrial Pipes -->
+                <a-entity id="pipe-system">
+                    <!-- Main water pipe (large) -->
+                    <a-cylinder position="0 2.6 0.8" 
+                                radius="0.15" 
+                                height="9" 
+                                rotation="0 0 90"
+                                color="#2a4a2a"
+                                material="src: #metal-texture; metalness: 0.8; roughness: 0.4"
+                                shadow="cast: true; receive: true">
+                        <!-- Pipe joints/flanges -->
+                        <a-torus position="-3 0 0" 
+                                 radius="0.18" 
+                                 radius-tubular="0.03"
+                                 rotation="0 90 0"
+                                 color="#1a3a1a"
+                                 material="metalness: 0.9; roughness: 0.5"></a-torus>
+                        <a-torus position="0 0 0" 
+                                 radius="0.18" 
+                                 radius-tubular="0.03"
+                                 rotation="0 90 0"
+                                 color="#1a3a1a"
+                                 material="metalness: 0.9; roughness: 0.5"></a-torus>
+                        <a-torus position="3 0 0" 
+                                 radius="0.18" 
+                                 radius-tubular="0.03"
+                                 rotation="0 90 0"
+                                 color="#1a3a1a"
+                                 material="metalness: 0.9; roughness: 0.5"></a-torus>
+                        
+                        <!-- Rust spots -->
+                        <a-box position="-2 0 0.16" width="0.5" height="0.02" depth="0.02" color="#8b3a1a" opacity="0.8"></a-box>
+                        <a-box position="1 0 0.16" width="0.3" height="0.02" depth="0.02" color="#8b3a1a" opacity="0.8"></a-box>
+                    </a-cylinder>
+                    
+                    <!-- Secondary pipe (smaller) -->
+                    <a-cylinder position="0 0.6 -0.9" 
+                                radius="0.08" 
+                                height="9" 
+                                rotation="0 0 90"
+                                color="#4a4a4a"
+                                material="metalness: 0.9; roughness: 0.3"
+                                shadow="cast: true"></a-cylinder>
+                    
+                    <!-- Support brackets -->
+                    <a-box position="-3 2.6 0.95" 
+                           width="0.1" 
+                           height="0.4" 
+                           depth="0.05"
+                           color="#3a3a3a"
+                           material="metalness: 0.7"></a-box>
+                    <a-box position="0 2.6 0.95" 
+                           width="0.1" 
+                           height="0.4" 
+                           depth="0.05"
+                           color="#3a3a3a"
+                           material="metalness: 0.7"></a-box>
+                    <a-box position="3 2.6 0.95" 
+                           width="0.1" 
+                           height="0.4" 
+                           depth="0.05"
+                           color="#3a3a3a"
+                           material="metalness: 0.7"></a-box>
+                </a-entity>
+
+                <!-- Tunnel Lighting -->
+                <a-entity position="-3 2.8 0">
+                    <a-box width="0.3" height="0.15" depth="0.15" color="#666666"></a-box>
+                    <a-light type="point" intensity="1.5" distance="4" color="#ff8800" position="0 -0.1 0"></a-light>
+                </a-entity>
+                <a-entity position="0 2.8 0">
+                    <a-box width="0.3" height="0.15" depth="0.15" color="#666666"></a-box>
+                    <a-light type="point" intensity="1.5" distance="4" color="#ff8800" position="0 -0.1 0"></a-light>
+                </a-entity>
+                <a-entity position="3 2.8 0">
+                    <a-box width="0.3" height="0.15" depth="0.15" color="#666666"></a-box>
+                    <a-light type="point" intensity="1.5" distance="4" color="#ff8800" position="0 -0.1 0"></a-light>
+                </a-entity>
+
+                <!-- Gas Meter (Task 1) -->
+                <a-entity id="gas-meter" 
+                          position="-0.6 1.2 -3.5"
+                          geometry="primitive: box; width: 0.15; height: 0.25; depth: 0.05"
+                          material="color: #00ff00; metalness: 0.6; roughness: 0.4"
+                          shadow="cast: true"
+                          hoverable
+                          grabbable
+                          stretchable
+                          draggable
+                          gas-meter
+                          class="interactive">
+                    <a-box position="0 0.05 0.026" 
+                           width="0.12" 
+                           height="0.15" 
+                           depth="0.001"
+                           color="#001a00"></a-box>
+                    <a-text value="O2: 20.9%\nLEL: 0%\nH2S: 0ppm" 
+                            position="0 0.05 0.027"
+                            align="center"
+                            width="0.3"
+                            color="#00ff00"></a-text>
+                    <a-sphere position="0 0.15 0.026" 
+                              radius="0.015" 
+                              color="#00ff00"
+                              material="emissive: #00ff00; emissiveIntensity: 0.8"></a-sphere>
+                </a-entity>
+
+                <!-- Leaking Pipe Section (Task 2) -->
+                <a-entity id="hazard-zone" position="2.5 1.8 0.5">
+                    <!-- Damaged pipe section -->
+                    <a-cylinder position="0 0 0" 
+                                radius="0.06" 
+                                height="0.8"
+                                rotation="30 20 45"
+                                color="#8b0000"
+                                material="metalness: 0.6; roughness: 0.8"
+                                shadow="cast: true"></a-cylinder>
+                    
+                    <!-- Crack/leak point -->
+                    <a-box position="0.2 0.1 0" 
+                           width="0.08" 
+                           height="0.02" 
+                           depth="0.02"
+                           color="#ff0000"></a-box>
+                    
+                    <!-- Leak spray effect -->
+                    <a-entity id="leak-particles" position="0.3 0.15 0">
+                        <a-cone position="0 0 0" 
+                                radius-bottom="0.05" 
+                                radius-top="0.15"
+                                height="0.3"
+                                rotation="0 0 90"
+                                color="#ffffff"
+                                opacity="0.4"
+                                animation="property: opacity; to: 0.7; dur: 500; loop: true; dir: alternate"></a-cone>
+                        <a-sphere radius="0.06" 
+                                  color="#e0e0e0" 
+                                  opacity="0.5"
+                                  animation="property: scale; to: 2 2 2; dur: 1000; loop: true; easing: easeOutQuad"></a-sphere>
+                    </a-entity>
+                    
+                    <!-- Dripping water -->
+                    <a-entity position="0.3 -0.5 0">
+                        <a-sphere radius="0.03" 
+                                  color="#1a4d5c"
+                                  material="metalness: 0.9; roughness: 0.1"
+                                  animation="property: position; to: 0.3 -1.2 0; dur: 800; loop: true; easing: easeInQuad"></a-sphere>
+                    </a-entity>
+                    
+                    <!-- Warning tape -->
+                    <a-plane position="0.5 0 0" 
+                             width="0.8" 
+                             height="0.15"
+                             color="#ffff00"
+                             rotation="0 -30 0">
+                        <a-box position="0 0 0" 
+                               width="0.15" 
+                               height="0.15" 
+                               depth="0.001"
+                               color="#000000"
+                               opacity="0.3"></a-box>
+                        <a-text value="CAUTION" 
+                                position="0 0 0.01"
+                                align="center"
+                                width="1.5"
+                                color="#000000"></a-text>
+                    </a-plane>
+                    
+                    <!-- Proximity detector -->
+                    <a-box position="0 0 0"
+                           width="1.2"
+                           height="1.2"
+                           depth="1.2"
+                           visible="false"
+                           hazard-detector></a-box>
+                </a-entity>
+
+                <!-- Isolation Valve (Tasks 3 & 4) -->
+                <a-entity id="isolation-valve" position="3.5 1.8 0">
+                    <!-- Valve body/housing -->
+                    <a-box width="0.3" 
+                           height="0.4" 
+                           depth="0.3"
+                           color="#2a2a2a"
+                           material="metalness: 0.8; roughness: 0.5"
+                           shadow="cast: true"></a-box>
+                    
+                    <!-- Pipe connections -->
+                    <a-cylinder position="-0.25 0 0" 
+                                radius="0.08" 
+                                height="0.3"
+                                rotation="0 0 90"
+                                color="#3a3a3a"
+                                material="metalness: 0.9; roughness: 0.4"></a-cylinder>
+                    <a-cylinder position="0.25 0 0" 
+                                radius="0.08" 
+                                height="0.3"
+                                rotation="0 0 90"
+                                color="#3a3a3a"
+                                material="metalness: 0.9; roughness: 0.4"></a-cylinder>
+                    
+                    <!-- Valve wheel (interactive) -->
+                    <a-entity id="valve-wheel"
+                              position="0 0 0.3"
+                              geometry="primitive: torus; radius: 0.2; radiusTubular: 0.03; segmentsTubular: 20"
+                              material="color: #ff6600; metalness: 0.8; roughness: 0.3"
+                              shadow="cast: true"
+                              hoverable
+                              grabbable
+                              valve-controller
+                              class="interactive">
+                        <!-- Spokes for grip -->
+                        <a-box position="0 0 0" 
+                               width="0.4" 
+                               height="0.03" 
+                               depth="0.03" 
+                               color="#ff6600"
+                               material="metalness: 0.8"></a-box>
+                        <a-box position="0 0 0" 
+                               width="0.03" 
+                               height="0.03" 
+                               depth="0.4" 
+                               color="#ff6600"
+                               rotation="0 90 0"
+                               material="metalness: 0.8"></a-box>
+                        <a-box position="0 0 0" 
+                               width="0.28" 
+                               height="0.03" 
+                               depth="0.03" 
+                               color="#ff6600"
+                               rotation="0 45 0"
+                               material="metalness: 0.8"></a-box>
+                        <a-box position="0 0 0" 
+                               width="0.28" 
+                               height="0.03" 
+                               depth="0.03" 
+                               color="#ff6600"
+                               rotation="0 -45 0"
+                               material="metalness: 0.8"></a-box>
+                        
+                        <!-- Center hub -->
+                        <a-cylinder radius="0.05" 
+                                    height="0.04"
+                                    color="#cc5500"
+                                    material="metalness: 0.9"></a-cylinder>
+                    </a-entity>
+                    
+                    <!-- Valve label plate -->
+                    <a-plane position="0 0.35 0" 
+                             width="0.6" 
+                             height="0.15"
+                             color="#ffff00"
+                             shadow="cast: true">
+                        <a-text value="MAIN ISOLATION VALVE" 
+                                position="0 0 0.01"
+                                align="center"
+                                width="1.5"
+                                color="#000000"
+                                font="roboto"></a-text>
+                    </a-plane>
+                    
+                    <!-- Pressure gauge -->
+                    <a-circle position="0 -0.3 0.16" 
+                              radius="0.08"
+                              color="#eeeeee"
+                              material="metalness: 0.5">
+                        <a-text value="PSI\n75" 
+                                position="0 0 0.01"
+align="center"
+width="0.4"
+color="#000000"></a-text>
+</a-circle>
+</a-entity>
+<!-- Emergency exit sign -->
+            <a-plane position="0 2.2 -4.8" 
+                     width="1" 
+                     height="0.4"
+                     color="#00ff00"
+                     material="emissive: #00ff00; emissiveIntensity: 0.3"
+                     rotation="0 180 0">
+                <a-text value="◄◄ EMERGENCY EXIT" 
+                        position="0 0 0.01"
                         align="center"
-                        width="1.0"
-                        color="#000000"></a-text>
+                        width="2.5"
+                        color="#000000"
+                        font="roboto"></a-text>
             </a-plane>
         </a-entity>
+    </a-entity>
 
-        <!-- Emergency exit marker -->
-        <a-plane position="0 2 3.8" 
-                 width="0.8" 
-                 height="0.3"
-                 color="#00ff00"
-                 rotation="0 180 0"
-                 shadow="cast: true">
-            <a-text value="◄ EMERGENCY EXIT" 
-                    position="0 0 0.01"
-                    align="center"
-                    width="1.8"
-                    color="#000000"
-                    font="roboto"></a-text>
-        </a-plane>
-
-        <!-- Light fixtures (visual only) -->
-        <a-entity position="0 3.1 1">
-            <a-box width="0.6" height="0.1" depth="0.3" color="#e0e0e0" metalness="0.8"></a-box>
-            <a-light type="point" intensity="0.5" distance="3" color="#ffffee"></a-light>
-        </a-entity>
+    <!-- Player Rig -->
+    <a-entity id="rig" 
+              movement-controls="speed: 0.15; fly: false; constrainToNavMesh: false" 
+              position="2 1.6 2"
+              rotation="0 -135 0">
         
-        <a-entity position="0 3.1 -2">
-            <a-box width="0.6" height="0.1" depth="0.3" color="#e0e0e0" metalness="0.8"></a-box>
-            <a-light type="point" intensity="0.5" distance="3" color="#ffffee"></a-light>
+        <!-- Camera -->
+        <a-entity id="camera" 
+                  camera 
+                  look-controls="pointerLockEnabled: false; touchEnabled: true; reverseMouseDrag: false"
+                  position="0 0 0">
+            
+            <!-- Headlamp -->
+            <a-light type="spot" 
+                     intensity="2.5" 
+                     angle="35" 
+                     penumbra="0.3"
+                     distance="12"
+                     decay="1.2"
+                     color="#fff8e1"
+                     position="0 0 0.1"
+                     rotation="0 0 0"
+                     castShadow="true"></a-light>
+            
+            <!-- VR Controllers -->
+            <a-entity id="left-hand" 
+                      hand-controls="hand: left; handModelStyle: lowPoly"
+                      laser-controls="hand: left"
+                      raycaster="objects: .interactive; far: 5; showLine: true"
+                      super-hands="colliderEvent: raycaster-intersection;
+                                 colliderEventProperty: els;
+                                 colliderEndEvent: raycaster-intersection-cleared;
+                                 colliderEndEventProperty: clearedEls;">
+            </a-entity>
+            
+            <a-entity id="right-hand" 
+                      hand-controls="hand: right; handModelStyle: lowPoly"
+                      laser-controls="hand: right"
+                      raycaster="objects: .interactive; far: 5; showLine: true"
+                      super-hands="colliderEvent: raycaster-intersection;
+                                 colliderEventProperty: els;
+                                 colliderEndEvent: raycaster-intersection-cleared;
+                                 colliderEndEventProperty: clearedEls;">
+            </a-entity>
+            
+            <!-- Cursor for desktop interaction -->
+            <a-entity cursor="rayOrigin: mouse; fuse: false"
+                      raycaster="objects: .interactive; far: 5"></a-entity>
         </a-entity>
+    </a-entity>
+</a-scene>
 
-        <!-- Sky background -->
-        <a-sky color="#87ceeb" opacity="0.3"></a-sky>
-    </a-scene>
-    
-    <!-- Load custom components AFTER A-Frame -->
-    <script src="js/main.js"></script>
+<!-- Load custom components -->
+<script src="js/main.js"></script>
 </body>
 </html>
