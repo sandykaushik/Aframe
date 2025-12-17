@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Confined Space VR Training Module</title>
+    <meta name="description" content="A-Frame WebXR Confined Space Training Simulator">
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-super-hands-component@5.0.1/dist/super-hands.min.js"></script>
+    
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script src="js/main.js"></script> 
+</head>
+
+<body>
+    <a-scene background="color: #050505" fog="type: exponential; density: 0.15; color: #111" training-manager>
+        
+        <a-assets>
+            <img id="rust" src="https://cdn.glitch.global/e80674d4-5c91-4560-934c-645373307567/rust-texture.jpg?v=1646245000000" crossorigin="anonymous"> 
+            <audio id="hissing-sound" src="https://cdn.glitch.global/e80674d4-5c91-4560-934c-645373307567/hissing-leak-loop.mp3?v=1646245000000" preload="auto" crossorigin="anonymous"></audio>
+        </a-assets>
+
+        <a-plane position="-3 2.5 -5" width="2.5" height="1.5" color="#333344" opacity="0.8">
+            <a-text value="CONFINED SPACE ENTRY: TASK LIST" width="2.2" position="0 0.6 0.01" align="center" color="#FFFFAA"></a-text>
+            <a-text id="task-1" value="[ ] 1. Test atmosphere with gas meter (Required)" width="2.2" position="-1.0 0.3 0.01" align="left" color="#AAAAFF"></a-text>
+            <a-text id="task-2" value="[ ] 2. Identify potential hazards (Leaking hose)" width="2.2" position="-1.0 0.1 0.01" align="left" color="#AAAAFF"></a-text>
+            <a-text id="task-3" value="[ ] 3. Communicate findings to attendant" width="2.2" position="-1.0 -0.1 0.01" align="left" color="#AAAAFF"></a-text>
+            <a-text id="task-4" value="[ ] 4. Isolate hazard using valve" width="2.2" position="-1.0 -0.3 0.01" align="left" color="#AAAAFF"></a-text>
+        </a-plane>
+
+        <a-plane 
+            id="hazard-ui" position="0 2 -2" width="3" height="1.5" color="red" opacity="0.9"
+            look-at-camera visible="false">
+            <a-text value="!!! IMMEDIATE HAZARD DETECTED !!!" width="2.8" position="0 0.5 0.01" align="center" color="yellow"></a-text>
+            <a-text value="LEAKING HOSE: Potential Flammable/Toxic Gas" width="2.8" position="0 0.2 0.01" align="center" color="#fff"></a-text>
+            <a-text value="ACTION: RETREAT and ISOLATE LEAK using valve." width="2.8" position="0 -0.2 0.01" align="center" color="#fff"></a-text>
+        </a-plane>
+        
+        <a-plane 
+            id="completion-ui" position="0 2 -3" width="4" height="1.5" color="#006600" opacity="0.9"
+            look-at-camera visible="false">
+            <a-text value="TRAINING COMPLETE!" width="3.8" position="0 0.5 0.01" align="center" color="#FFFFFF"></a-text>
+            <a-text value="All tasks successfully performed. Hazard Isolated." width="3.8" position="0 0.2 0.01" align="center" color="#FFFFFF"></a-text>
+            <a-text value="Review steps and exit confined space." width="3.8" position="0 -0.2 0.01" align="center" color="#FFFFFF"></a-text>
+        </a-plane>
+
+        <a-box 
+            id="gas-meter" grabbable 
+            position="1.5 0.5 -1.5" width="0.3" height="0.2" depth="0.1" 
+            color="#00FF00" material="roughness: 0.1" shadow="cast: true"
+            event-set__grab="event: grab-start; _target: a-scene; emit: meter-grabbed;">
+            <a-plane position="0 0.02 0.051" width="0.2" height="0.1" color="#000000"></a-plane>
+            <a-text value="GAS METER\nO2: 20.9% LEL: 0%" width="0.18" position="0 0.02 0.06" align="center" color="#00FFFF"></a-text>
+        </a-box>
+
+        <a-cylinder position="0 2 -10" rotation="0 0 90" radius="3.5" height="40" color="#2A2A2A" material="roughness: 1; side: double; src: #rust; repeat: 10 4" shadow="receive: true"></a-cylinder>
+
+        <a-cylinder position="0 5 0" radius="0.8" height="2" color="#111" open-ended="true" side="double"></a-cylinder>
+        <a-circle position="0 6 0" radius="0.8" rotation="-90 0 0" color="#fff" opacity="0.8" material="emissive: #fff; emissiveIntensity: 2"></a-circle>
+        <a-cone position="0 3 0" radius-bottom="1.5" radius-top="0.8" height="6" color="#fff" opacity="0.05" segments-radial="8"></a-cone>
+
+        <a-cylinder id="main-pipe" position="-2.5 1 -10" rotation="90 0 0" radius="0.4" height="40" color="#8B4513" roughness="0.6" shadow="cast: true"></a-cylinder>
+        <a-cylinder position="2.5 0.5 -10" rotation="90 0 0" radius="0.2" height="40" color="#EEEEEE" roughness="0.3" shadow="cast: true"></a-cylinder>
+
+        <a-torus 
+            id="isolation-valve" position="-2.5 1 0" rotation="90 0 0" radius="0.5" radius-tubular="0.05" 
+            segments-radial="16" color="#AAAAAA" grabbable turnable valve-logic shadow="cast: true">
+        </a-torus>
+
+        <a-torus 
+            id="hose-hazard" position="-1 0.1 -3" rotation="90 0 0" radius="0.5" 
+            radius-tubular="0.05" color="yellow" shadow="cast: true">
+        </a-torus>
+        
+        <a-tube path="-1 0 -1, 0 0 -2, 1 0 -3" radius="0.05" material="color: red"></a-tube>
+        <a-cylinder position="1 0.1 -5" rotation="0 0 90" radius="0.04" height="3" color="red" segments-radial="6"></a-cylinder>
+
+        <a-entity 
+            id="rig" movement-controls="speed: 0.1"
+            proximity-hazard="target: #hose-hazard; threshold: 2; sound: #hissing-sound">
+            
+            <a-entity id="camera" camera position="0 1.6 0" look-controls>
+                <a-entity light="type: spot; angle: 30; penumbra: 0.5; intensity: 1.5; castShadow: true; distance: 15" position="0 0 0"></a-entity>
+            </a-entity>
+
+            <a-entity laser-controls="hand: right" super-hands grab-controller turn-controller vive-controls="hand: right" oculus-touch-controls="hand: right" windows-motion-controls="hand: right"></a-entity>
+            <a-entity laser-controls="hand: left" super-hands grab-controller turn-controller vive-controls="hand: left" oculus-touch-controls="hand: left" windows-motion-controls="hand: left"></a-entity>
+            
+        </a-entity>
+
+    </a-scene>
+</body>
+</html>
