@@ -10,13 +10,10 @@
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     
     <!-- A-Frame Extras (for movement-controls) -->
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
     
     <!-- A-Frame Super Hands (for interaction) -->
     <script src="https://unpkg.com/super-hands@3.0.3/dist/super-hands.min.js"></script>
-    
-    <!-- Custom Components -->
-    <script src="js/main.js"></script>
 </head>
 <body>
     <!-- 2D UI Overlay -->
@@ -62,30 +59,26 @@
 
     <!-- A-Frame Scene -->
     <a-scene 
-        loading-screen="enabled: false"
-        training-manager
-        cursor="rayOrigin: mouse">
+        vr-mode-ui="enabled: true"
+        renderer="colorManagement: true; physicallyCorrectLights: true"
+        training-manager>
         
         <!-- Asset Management -->
-        <a-assets>
-            <!-- Textures (reference local assets folder) -->
-            <img id="wall-texture" src="assets/concrete.jpg" crossorigin="anonymous">
-            <img id="floor-texture" src="assets/metal-floor.jpg" crossorigin="anonymous">
-            
-            <!-- Audio -->
-            <audio id="hiss-sound" src="assets/gas-hiss.mp3" preload="auto"></audio>
-            <audio id="valve-sound" src="assets/valve-turn.mp3" preload="auto"></audio>
+        <a-assets timeout="10000">
+            <!-- Placeholder audio elements (will work without files) -->
+            <audio id="hiss-sound" preload="auto"></audio>
+            <audio id="valve-sound" preload="auto"></audio>
         </a-assets>
 
         <!-- Lighting -->
         <a-entity id="rig" 
-                  movement-controls="speed: 0.03; fly: false" 
+                  movement-controls="speed: 0.03; fly: false; controls: gamepad, keyboard" 
                   position="0 1.6 5">
             
             <!-- Camera with headlamp -->
             <a-entity id="camera" 
                       camera 
-                      look-controls="pointerLockEnabled: true"
+                      look-controls="pointerLockEnabled: false"
                       position="0 0 0">
                 
                 <!-- Headlamp spotlight -->
@@ -101,19 +94,21 @@
                 
                 <!-- VR Controllers -->
                 <a-entity id="left-hand" 
-                          hand-controls="hand: left"
+                          hand-controls="hand: left; handModelStyle: lowPoly"
                           super-hands="colliderEvent: raycaster-intersection;
                                      colliderEventProperty: els;
                                      colliderEndEvent: raycaster-intersection-cleared;
-                                     colliderEndEventProperty: clearedEls;">
+                                     colliderEndEventProperty: clearedEls;"
+                          laser-controls="hand: left">
                 </a-entity>
                 
                 <a-entity id="right-hand" 
-                          hand-controls="hand: right"
+                          hand-controls="hand: right; handModelStyle: lowPoly"
                           super-hands="colliderEvent: raycaster-intersection;
                                      colliderEventProperty: els;
                                      colliderEndEvent: raycaster-intersection-cleared;
-                                     colliderEndEventProperty: clearedEls;">
+                                     colliderEndEventProperty: clearedEls;"
+                          laser-controls="hand: right">
                 </a-entity>
             </a-entity>
         </a-entity>
@@ -188,7 +183,8 @@
                   grabbable
                   stretchable
                   draggable
-                  gas-meter>
+                  gas-meter
+                  class="interactive">
             <!-- Screen -->
             <a-box position="0 0.05 0.026" 
                    width="0.12" 
@@ -214,17 +210,12 @@
                         metalness="0.5"
                         roughness="0.7"></a-cylinder>
             
-            <!-- Leak particle effect -->
-            <a-entity id="leak-particles"
-                      position="0.2 0.2 0"
-                      particle-system="preset: dust; 
-                                     color: #ffffff, #cccccc;
-                                     particleCount: 100;
-                                     maxAge: 2;
-                                     size: 0.5;
-                                     velocityValue: 0.5 0.5 0.5;
-                                     velocitySpread: 0.3 0.3 0.3;
-                                     accelerationValue: 0 0.2 0">
+            <!-- Leak visual indicator (simple sphere cloud) -->
+            <a-entity id="leak-particles" position="0.2 0.2 0">
+                <a-sphere radius="0.1" color="#ffffff" opacity="0.3" position="0 0 0"></a-sphere>
+                <a-sphere radius="0.08" color="#cccccc" opacity="0.3" position="0.1 0.1 0.1"></a-sphere>
+                <a-sphere radius="0.09" color="#ffffff" opacity="0.3" position="-0.1 0.05 -0.05"></a-sphere>
+                <a-sphere radius="0.07" color="#cccccc" opacity="0.3" position="0.05 -0.1 0.08"></a-sphere>
             </a-entity>
             
             <!-- Proximity detector -->
@@ -252,8 +243,8 @@
                       material="color: #ff6600; metalness: 0.7; roughness: 0.5"
                       hoverable
                       grabbable
-                      rotatable="rotation-axis: y"
-                      valve-controller>
+                      valve-controller
+                      class="interactive">
                 <!-- Wheel spokes -->
                 <a-box position="0 0 0" width="0.3" height="0.02" depth="0.02" color="#ff6600"></a-box>
                 <a-box position="0 0 0" width="0.02" height="0.02" depth="0.3" color="#ff6600" rotation="0 90 0"></a-box>
@@ -273,7 +264,7 @@
                      height="0.4" 
                      color="#ffff00"
                      rotation="0 45 0"></a-plane>
-            <a-text value="⚠️\nCONFINED\nSPACE" 
+            <a-text value="⚠\nCONFINED\nSPACE" 
                     position="0 0 0.01"
                     align="center"
                     width="0.8"
@@ -287,7 +278,7 @@
                  height="0.3"
                  color="#00ff00"
                  rotation="0 180 0">
-            <a-text value="← EXIT" 
+            <a-text value="EXIT" 
                     position="0 0 0.01"
                     align="center"
                     width="1.5"
@@ -297,5 +288,8 @@
         <!-- Sky (dark for confined space) -->
         <a-sky color="#0a0a0a"></a-sky>
     </a-scene>
+    
+    <!-- Load custom components AFTER A-Frame -->
+    <script src="js/main.js"></script>
 </body>
 </html>
