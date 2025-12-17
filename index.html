@@ -1,84 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Confined Space VR Training</title>
+  <meta charset="UTF-8">
+  <title>Confined Space VR Training – Working Baseline</title>
 
-  <!-- Libraries -->
+  <!-- A-Frame + Addons -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/aframe-super-hands-component@5.0.3/dist/aframe-super-hands.min.js"></script>
 
-  <link rel="stylesheet" href="style.css" />
-  <script src="js/main.js"></script>
+  <style>
+    body { margin: 0; background: #000; }
+  </style>
+
+  <script>
+    /* ===============================
+       TRAINING MANAGER
+    =============================== */
+    AFRAME.registerComponent('training-manager', {
+      init() {
+        this.tasks = {
+          atmosphereTested: false,
+          hazardIdentified: false,
+          isolated: false
+        };
+
+        this.el.sceneEl.addEventListener('meter-grabbed', () => {
+          this.tasks.atmosphereTested = true;
+          console.log('Task 1 complete: Atmosphere tested');
+        });
+      }
+    });
+
+    /* ===============================
+       PROXIMITY HAZARD
+    =============================== */
+    AFRAME.registerComponent('proximity-hazard', {
+      tick() {
+        const rig = document.querySelector('#rig');
+        const mgr = document.querySelector('[training-manager]').components['training-manager'];
+
+        if (!mgr.tasks.atmosphereTested || mgr.tasks.hazardIdentified) return;
+
+        const d = rig.object3D.position.distanceTo(this.el.object3D.position);
+        if (d < 1.2) {
+          mgr.tasks.hazardIdentified = true;
+          console.log('Task 2 complete: Hazard identified');
+        }
+      }
+    });
+
+    /* ===============================
+       ISOLATION VALVE
+    =============================== */
+    AFRAME.registerComponent('valve-logic', {
+      init() {
+        this.el.addEventListener('grab-end', () => {
+          const mgr = document.querySelector('[training-manager]').components['training-manager'];
+          if (!mgr.tasks.hazardIdentified) return;
+
+          mgr.tasks.isolated = true;
+
+          document.querySelector('#leakSound').components.sound.stopSound();
+          document.querySelector('#ui').setAttribute('visible', true);
+
+          console.log('Task 4 complete: Hazard isolated');
+        });
+      }
+    });
+
+    /* ===============================
+       UI FACING CAMERA
+    =============================== */
+    AFRAME.registerComponent('look-at-camera', {
+      tick() {
+        this.el.object3D.lookAt(
+          this.el.sceneEl.camera.el.object3D.position
+        );
+      }
+    });
+  </script>
 </head>
 
 <body>
+
 <a-scene
-  background="color: #111111"
-  fog="type: exponential; density: 0.05"
+  background="color: #111"
+  fog="type: exponential; density: 0.02"
   renderer="physicallyCorrectLights: true">
 
-  <!-- Player Rig -->
+  <!-- DEBUG SKY (REMOVE LATER) -->
+  <a-sky color="#222"></a-sky>
+
+  <!-- REQUIRED BASE LIGHT -->
+  <a-light type="ambient" intensity="0.3"></a-light>
+
+  <!-- PLAYER RIG -->
   <a-entity id="rig"
-    movement-controls="speed: 0.03"
-    position="0 1.6 0">
+    position="0 1.6 2"
+    movement-controls="speed: 0.03">
 
     <a-camera
       wasd-controls-enabled="false"
       look-controls
       super-hands>
 
-      <!-- Headlamp -->
+      <!-- HEADLAMP -->
       <a-entity light="
         type: spot;
-        intensity: 3.0;
+        intensity: 3;
         angle: 45;
-        distance: 10;
-        castShadow: true">
+        distance: 10">
       </a-entity>
 
     </a-camera>
   </a-entity>
 
-  <!-- Confined Tunnel -->
+  <!-- CONFINED TUNNEL -->
   <a-cylinder
     radius="1.2"
     height="12"
-    position="0 -5 0"
+    position="0 1 -4"
     rotation="90 0 0"
-    material="src: assets/rust-texture.jpg; roughness: 1">
+    material="color: #444; side: double">
   </a-cylinder>
 
-  <!-- Gas Meter (Task 1) -->
+  <!-- GAS METER (TASK 1) -->
   <a-box id="gas-meter"
-    position="-0.4 0.5 -1"
-    depth="0.15" height="0.2" width="0.3"
-    material="color: #333"
+    position="-0.5 1.2 -2"
+    depth="0.15"
+    height="0.2"
+    width="0.3"
+    color="#555"
     grabbable
     event-set__grab="_event: grab-start; _emit: meter-grabbed">
   </a-box>
 
-  <!-- Leaking Hose (Task 2) -->
+  <!-- LEAKING HOSE (TASK 2) -->
   <a-cylinder id="hose-hazard"
-    position="0 -0.5 -3"
+    position="0 0.9 -6"
     radius="0.05"
     height="1.2"
-    material="color: #222"
+    color="#222"
     proximity-hazard>
   </a-cylinder>
 
-  <a-sound
-    id="leakSound"
+  <a-sound id="leakSound"
     src="assets/hissing-leak-loop.mp3"
     autoplay="true"
     loop="true"
-    position="0 -0.5 -3">
+    position="0 0.9 -6">
   </a-sound>
 
-  <!-- Isolation Valve (Task 4) -->
+  <!-- ISOLATION VALVE (TASK 4) -->
   <a-torus id="isolation-valve"
-    position="0.6 -0.5 -3"
+    position="0.6 0.9 -6"
     radius="0.15"
     radius-tubular="0.03"
     rotation="90 0 0"
@@ -86,21 +162,21 @@
     valve-logic>
   </a-torus>
 
-  <!-- UI Feedback -->
-  <a-entity id="ui-panel"
-    position="0 1.8 -1"
-    look-at-camera
-    visible="false">
+  <!-- SUCCESS UI -->
+  <a-entity id="ui"
+    position="0 2 -1"
+    visible="false"
+    look-at-camera>
     <a-text
-      id="ui-text"
       value="Hazard Isolated Successfully"
-      align="center"
-      color="#00ff00">
+      color="#00ff00"
+      align="center">
     </a-text>
   </a-entity>
 
   <a-entity training-manager></a-entity>
 
 </a-scene>
+
 </body>
 </html>
