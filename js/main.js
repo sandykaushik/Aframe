@@ -1,163 +1,250 @@
-// =================================================================
-// 1. TRAINING MANAGER COMPONENT (State Management)
-// =================================================================
+/* ============================================
+   TRAINING MANAGER COMPONENT
+   Manages overall training state and task progression
+   ============================================ */
 AFRAME.registerComponent('training-manager', {
-    init: function () {
-        this.tasks = [
-            { id: 'task-1', text: '[ ] 1. Test atmosphere with gas meter (Required)', completed: false },
-            { id: 'task-2', text: '[ ] 2. Identify potential hazards (Leaking hose)', completed: false },
-            { id: 'task-3', text: '[ ] 3. Communicate findings to attendant', completed: false },
-            { id: 'task-4', text: '[ ] 4. Isolate hazard using valve', completed: false }
-        ];
+    schema: {},
+    
+    init: function() {
+        this.tasks = {
+            task1: false, // Atmosphere test
+            task2: false, // Hazard identification
+            task3: false, // Isolation valve turned
+            task4: false  // Verification complete
+        };
         
-        this.taskTextEls = {};
-        this.tasks.forEach(task => {
-            this.taskTextEls[task.id] = document.querySelector(`#${task.id}`); 
-        });
+        this.hissSound = null;
         
-        // Register event listeners for task completion
-        this.el.sceneEl.addEventListener('meter-grabbed', this.completeStep1.bind(this));
-        this.el.sceneEl.addEventListener('hazard-identified', this.completeStep2.bind(this));
-        this.el.sceneEl.addEventListener('hazard-isolated', this.completeStep3And4.bind(this));
+        // Listen for task completion events
+        this.el.addEventListener('meter-grabbed', this.onTask1Complete.bind(this));
+        this.el.addEventListener('hazard-identified', this.onTask2Complete.bind(this));
+        this.el.addEventListener('valve-turned', this.onTask3Complete.bind(this));
         
-        this.updateTaskList();
+        console.log('Training Manager initialized');
     },
-
-    updateTaskList: function () {
-        this.tasks.forEach(task => {
-            let prefix = task.completed ? '[✓]' : '[ ]';
-            let originalDesc = task.text.substring(task.text.indexOf(' ')); 
-            this.taskTextEls[task.id].setAttribute('value', prefix + originalDesc);
-            if (task.completed) {
-                this.taskTextEls[task.id].setAttribute('color', '#00FF00'); // Green when complete
+    
+    onTask1Complete: function() {
+        if (!this.tasks.task1) {
+            this.tasks.task1 = true;
+            this.updateTaskUI('task-1');
+            console.log('Task 1 Complete: Atmosphere tested');
+        }
+    },
+    
+    onTask2Complete: function() {
+        if (this.tasks.task1 && !this.tasks.task2) {
+            this.tasks.task2 = true;
+            this.updateTaskUI('task-2');
+            
+            // Show hazard warning
+            const hazardWarning = document.getElementById('hazard-warning');
+            if (hazardWarning) {
+                hazardWarning.style.display = 'block';
             }
+            
+            // Play hissing sound
+            const hissSound = document.getElementById('hiss-sound');
+            if (hissSound) {
+                this.hissSound = hissSound;
+                hissSound.loop = true;
+                hissSound.volume = 0.6;
+                hissSound.play().catch(e => console.log('Audio play failed:', e));
+            }
+            
+            console.log('Task 2 Complete: Hazard identified');
+        }
+    },
+    
+    onTask3Complete: function() {
+        if (this.tasks.task2 && !this.tasks.task3) {
+            this.tasks.task3 = true;
+            this.tasks.task4 = true; // Task 4 completes with task 3
+            this.updateTaskUI('task-3');
+            this.updateTaskUI('task-4');
+            
+            // Stop hissing sound
+            if (this.hissSound) {
+                this.hissSound.pause();
+                this.hissSound.currentTime = 0;
+            }
+            
+            // Hide hazard warning
+            const hazardWarning = document.getElementById('hazard-warning');
+            if (hazardWarning) {
+                hazardWarning.style.display = 'none';
+            }
+            
+            // Hide leak particles
+            const leakParticles = document.getElementById('leak-particles');
+            if (leakParticles) {
+                leakParticles.setAttribute('visible', 'false');
+            }
+            
+            // Show completion panel
+            setTimeout(() => {
+                const completionPanel = document.getElementById('completion-panel');
+                if (completionPanel) {
+                    completionPanel.style.display = 'block';
+                }
+            }, 1000);
+            
+            console.log('Tasks 3 & 4 Complete: Isolation verified');
+        }
+    },
+    
+    updateTaskUI: function(taskId) {
+        const taskEl = document.getElementById(taskId);
+        if (taskEl) {
+            taskEl.classList.add('completed');
+            const statusEl = taskEl.querySelector('.task-status');
+            if (statusEl) {
+                statusEl.textContent = '✓';
+            }
+        }
+    }
+});
+
+/* ============================================
+   GAS METER COMPONENT
+   Handles Task 1 completion when grabbed
+   ============================================ */
+AFRAME.registerComponent('gas-meter', {
+    schema: {},
+    
+    init: function() {
+        this.grabbed = false;
+        
+        // Listen for grab events from super-hands
+        this.el.addEventListener('grab-start', this.onGrabStart.bind(this));
+        
+        console.log('Gas meter ready');
+    },
+    
+    onGrabStart: function() {
+        if (!this.grabbed) {
+            this.grabbed = true;
+            
+            // Visual feedback
+            this.el.setAttribute('material', 'emissive', '#00ff00');
+            this.el.setAttribute('material', 'emissiveIntensity', '0.5');
+            
+            // Emit event for training manager
+            this.el.sceneEl.emit('meter-grabbed');
+            
+            console.log('Gas meter grabbed - Task 1 triggered');
+        }
+    }
+});
+
+/* ============================================
+   HAZARD DETECTOR COMPONENT
+   Detects player proximity to hazard for Task 2
+   ============================================ */
+AFRAME.registerComponent('hazard-detector', {
+    schema: {
+        distance: { type: 'number', default: 1.5 }
+    },
+    
+    init: function() {
+        this.camera = null;
+        this.detected = false;
+        
+        // Wait for camera to be ready
+        this.el.sceneEl.addEventListener('camera-set-active', (evt) => {
+            this.camera = evt.detail.cameraEl;
         });
     },
-
-    completeStep1: function () {
-        if (!this.tasks[0].completed) {
-            this.tasks[0].completed = true;
-            this.updateTaskList();
-            console.log("Step 1 Complete: Gas meter retrieved.");
-        }
-    },
-
-    completeStep2: function () {
-        if (this.tasks[0].completed && !this.tasks[1].completed) {
-            this.tasks[1].completed = true;
-            this.updateTaskList();
-            console.log("Step 2 Complete: Hazard identified with meter.");
-        } else if (!this.tasks[0].completed) {
-             console.warn("Hazard approached, but Step 1 (Gas Meter) not completed yet!");
-        }
-    },
     
-    completeStep3And4: function () {
-        if (this.tasks[1].completed && !this.tasks[3].completed) { 
-            this.tasks[2].completed = true; // Step 3: Communicate findings (inferred)
-            this.tasks[3].completed = true; // Step 4: Isolate hazard
-            this.updateTaskList();
-            document.querySelector('#completion-ui').setAttribute('visible', 'true'); // Show completion message
-            console.log("Steps 3 & 4 Complete: Hazard isolated. Training complete.");
+    tick: function() {
+        if (!this.camera || this.detected) return;
+        
+        // Get training manager to check if task 1 is complete
+        const trainingManager = this.el.sceneEl.components['training-manager'];
+        if (!trainingManager || !trainingManager.tasks.task1) return;
+        
+        // Calculate distance to camera
+        const hazardPos = this.el.object3D.getWorldPosition(new THREE.Vector3());
+        const cameraPos = this.camera.object3D.getWorldPosition(new THREE.Vector3());
+        const distance = hazardPos.distanceTo(cameraPos);
+        
+        // Trigger hazard detection
+        if (distance < this.data.distance) {
+            this.detected = true;
+            this.el.sceneEl.emit('hazard-identified');
+            console.log('Hazard detected - Task 2 triggered');
         }
     }
 });
 
-// =================================================================
-// 2. PROXIMITY HAZARD COMPONENT (Leak detection logic)
-// =================================================================
-AFRAME.registerComponent('proximity-hazard', {
+/* ============================================
+   VALVE CONTROLLER COMPONENT
+   Handles valve rotation and Task 3/4 completion
+   ============================================ */
+AFRAME.registerComponent('valve-controller', {
     schema: {
-      target: {type: 'selector'}, 
-      threshold: {type: 'number', default: 1.5}, 
-      sound: {type: 'string', default: ''} 
-    },
-
-    init: function () {
-      this.cameraEl = document.querySelector('#camera'); 
-      this.hazardUIEl = document.querySelector('#hazard-ui'); 
-      this.trainingManager = document.querySelector('a-scene').components['training-manager'];
-      this.soundPlayed = false;
-      
-      this.el.setAttribute('sound', { src: this.data.sound, loop: true, volume: 0.0, autoplay: false, rolloffFactor: 0 });
-      this.hazardUIEl.setAttribute('visible', 'false'); 
-    },
-
-    tick: function () {
-      if (!this.data.target || !this.cameraEl) { return; }
-
-      const targetPos = this.data.target.object3D.getWorldPosition(new THREE.Vector3());
-      const cameraPos = this.cameraEl.object3D.getWorldPosition(new THREE.Vector3());
-      const distance = cameraPos.distanceTo(targetPos);
-      const soundEl = this.el.components.sound;
-
-      if (distance < this.data.threshold && !this.soundPlayed) {
-        // HAZARD ACTIVATED
-        if (soundEl && !soundEl.isPlaying) {
-          soundEl.play();
-          this.soundPlayed = true;
-          this.hazardUIEl.setAttribute('visible', 'true'); 
-          
-          if (this.trainingManager && this.trainingManager.tasks[0].completed) {
-             this.el.sceneEl.emit('hazard-identified');
-          }
-        }
-      } else if (distance >= this.data.threshold + 0.5 && this.soundPlayed) {
-        // Cleared the hazard
-        if (soundEl && soundEl.isPlaying) {
-          soundEl.stop();
-          this.soundPlayed = false;
-          this.hazardUIEl.setAttribute('visible', 'false'); 
-        }
-      }
-    }
-});
-
-// =================================================================
-// 3. VALVE LOGIC COMPONENT (Mitigation/Isolation)
-// =================================================================
-AFRAME.registerComponent('valve-logic', {
-    init: function () {
-        this.el.addEventListener('turn-end', this.checkIsolation.bind(this));
+        rotationRequired: { type: 'number', default: 360 } // degrees
     },
     
-    checkIsolation: function (evt) {
-        // Check if hazard was identified (Step 2) before allowing isolation to count
-        const manager = document.querySelector('a-scene').components['training-manager'];
-        if (!manager.tasks[1].completed) {
-            console.warn("Attempted isolation before hazard identification (Step 2)! Training protocol violation.");
-            return;
-        }
+    init: function() {
+        this.totalRotation = 0;
+        this.lastRotation = 0;
+        this.completed = false;
         
-        // Fire event to scene to complete remaining steps
-        this.el.sceneEl.emit('hazard-isolated'); 
-
-        // Stop the hissing sound 
-        const rig = document.querySelector('#rig');
-        if (rig.components.sound && rig.components.sound.isPlaying) {
-            rig.components.sound.stop();
-        }
-
-        // Visually show isolation/securing
-        document.querySelector('#hazard-ui').setAttribute('visible', 'false');
-        document.querySelector('#hose-hazard').setAttribute('color', '#333333'); 
+        // Listen for rotation events from super-hands
+        this.el.addEventListener('drag-start', this.onDragStart.bind(this));
+        this.el.addEventListener('drag-move', this.onDragMove.bind(this));
+        this.el.addEventListener('drag-end', this.onDragEnd.bind(this));
         
-        this.el.removeEventListener('turn-end', this.checkIsolation);
-    }
-});
-
-
-// =================================================================
-// 4. LOOK-AT CAMERA COMPONENT (For UI Panels)
-// =================================================================
-AFRAME.registerComponent('look-at-camera', {
-    init: function () {
-      this.cameraEl = document.querySelector('#camera');
+        console.log('Valve controller ready');
     },
-    tick: function () {
-      if (this.cameraEl) {
-        // Only rotate on the Y-axis to face the user, keeping the plane upright
-        this.el.object3D.rotation.y = this.cameraEl.object3D.rotation.y;
-      }
+    
+    onDragStart: function() {
+        this.lastRotation = this.el.object3D.rotation.y;
+    },
+    
+    onDragMove: function() {
+        // Calculate rotation delta
+        const currentRotation = this.el.object3D.rotation.y;
+        let delta = currentRotation - this.lastRotation;
+        
+        // Handle wrap-around
+        if (delta > Math.PI) delta -= 2 * Math.PI;
+        if (delta < -Math.PI) delta += 2 * Math.PI;
+        
+        this.totalRotation += Math.abs(delta) * (180 / Math.PI);
+        this.lastRotation = currentRotation;
+        
+        // Visual feedback
+        if (this.totalRotation > this.data.rotationRequired * 0.5) {
+            this.el.setAttribute('material', 'color', '#ffaa00');
+        }
+    },
+    
+    onDragEnd: function() {
+        if (!this.completed && this.totalRotation >= this.data.rotationRequired) {
+            this.completed = true;
+            
+            // Visual feedback
+            this.el.setAttribute('material', 'color', '#00ff00');
+            this.el.setAttribute('material', 'emissive', '#00ff00');
+            this.el.setAttribute('material', 'emissiveIntensity', '0.5');
+            
+            // Play valve sound
+            const valveSound = document.getElementById('valve-sound');
+            if (valveSound) {
+                valveSound.volume = 0.8;
+                valveSound.play().catch(e => console.log('Valve sound failed:', e));
+            }
+            
+            // Emit event for training manager
+            this.el.sceneEl.emit('valve-turned');
+            
+            console.log('Valve turned - Tasks 3 & 4 triggered');
+        }
     }
 });
+
+/* ============================================
+   INITIALIZATION
+   ============================================ */
+console.log('Confined Space Training Simulator - Custom components loaded');
