@@ -78,6 +78,25 @@ body {
     content: '✓';
 }
 
+#instruction-panel {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid #00aaff;
+    border-radius: 8px;
+    padding: 15px 30px;
+    pointer-events: none;
+}
+
+#instruction-panel p {
+    margin: 0;
+    color: #ffffff;
+    font-size: 14px;
+    text-align: center;
+}
+
 #hazard-warning {
     position: absolute;
     top: 50%;
@@ -159,7 +178,6 @@ body {
     transform: scale(1.05);
 }
 
-/* VR mode adjustments */
 .a-enter-vr-button {
     background-color: #00ff00 !important;
     border-radius: 8px !important;
