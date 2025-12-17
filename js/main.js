@@ -4,69 +4,77 @@ if (typeof AFRAME === 'undefined') {
 }
 
 /* ============================================
-   COLLISION PLAYER COMPONENT
-   Prevents player from moving through walls
+   GUTTER LID COMPONENT
+   Handles opening the gutter access
    ============================================ */
-AFRAME.registerComponent('collision-player', {
-    schema: {
-        radius: { type: 'number', default: 1.15 }, // Slightly smaller than tunnel radius (1.2)
-        height: { type: 'number', default: 1.6 }
-    },
+AFRAME.registerComponent('gutter-lid', {
+    schema: {},
     
     init: function() {
-        this.velocity = new THREE.Vector3();
-        this.previousPosition = new THREE.Vector3();
-        this.currentPosition = new THREE.Vector3();
-        this.tunnelCenter = new THREE.Vector3(0, 1.6, 0);
-        this.tunnelRadius = 1.15; // Max distance from center
-        this.tunnelLength = 4; // Half length (total 8m)
-        
-        console.log('Collision system initialized - tunnel radius:', this.tunnelRadius);
+        this.opened = false;
+        this.el.addEventListener('click', this.onLidClick.bind(this));
+        this.el.addEventListener('grab-start', this.onLidClick.bind(this));
+        console.log('Gutter lid ready - click to open');
     },
     
-    tick: function() {
-        // Get current position
-        this.currentPosition.copy(this.el.object3D.position);
+    onLidClick: function(evt) {
+        if (this.opened) return;
         
-        // Check radial distance from tunnel center (XZ plane at tunnel height)
-        const dx = this.currentPosition.x - this.tunnelCenter.x;
-        const dz = this.currentPosition.z - this.tunnelCenter.z;
-        const radialDistance = Math.sqrt(dx * dx + dz * dz);
+        this.opened = true;
+        console.log('→ Opening gutter lid...');
         
-        // If player is too far from center (hitting walls)
-        if (radialDistance > this.tunnelRadius) {
-            // Push player back toward center
-            const angle = Math.atan2(dz, dx);
-            this.currentPosition.x = this.tunnelCenter.x + Math.cos(angle) * this.tunnelRadius;
-            this.currentPosition.z = this.tunnelCenter.z + Math.sin(angle) * this.tunnelRadius;
+        // Play metal sound
+        const metalSound = document.getElementById('metal-sound');
+        if (metalSound && metalSound.src) {
+            metalSound.volume = 0.7;
+            metalSound.play().catch(e => console.log('Metal sound blocked:', e.message));
+        }
+        
+        // Animate lid opening (slide to side and rotate)
+        this.el.setAttribute('animation', {
+            property: 'position',
+            to: '0.8 0.5 0',
+            dur: 2000,
+            easing: 'easeInOutQuad'
+        });
+        
+        this.el.setAttribute('animation__rotation', {
+            property: 'rotation',
+            to: '0 0 90',
+            dur: 2000,
+            easing: 'easeInOutQuad'
+        });
+        
+        // Show underground section after animation
+        setTimeout(() => {
+            const underground = document.getElementById('underground-section');
+            if (underground) {
+                underground.setAttribute('visible', 'true');
+                console.log('✓ Underground section revealed');
+            }
             
-            console.log('Wall collision - pushed back. Distance was:', radialDistance.toFixed(3));
-        }
-        
-        // Check longitudinal bounds (along tunnel length - Y axis due to rotation)
-        if (this.currentPosition.y < -this.tunnelLength + 0.5) {
-            this.currentPosition.y = -this.tunnelLength + 0.5;
-            console.log('End cap collision - front');
-        }
-        if (this.currentPosition.y > this.tunnelLength - 0.5) {
-            this.currentPosition.y = this.tunnelLength - 0.5;
-            console.log('End cap collision - back');
-        }
-        
-        // Keep player above floor
-        if (this.currentPosition.y < 0) {
-            this.currentPosition.y = 0;
-        }
-        
-        // Apply corrected position
-        this.el.object3D.position.copy(this.currentPosition);
-        this.previousPosition.copy(this.currentPosition);
+            // Move player down into shaft
+            const rig = document.getElementById('rig');
+            if (rig) {
+                rig.setAttribute('animation', {
+                    property: 'position',
+                    to: '0 -3.4 0',
+                    dur: 3000,
+                    easing: 'easeInOutQuad'
+                });
+            }
+            
+            // Update task
+            const trainingManager = this.el.sceneEl.components['training-manager'];
+            if (trainingManager) {
+                trainingManager.onTask0Complete();
+            }
+        }, 2500);
     }
 });
 
 /* ============================================
    TRAINING MANAGER COMPONENT
-   Manages overall training state and task progression
    ============================================ */
 AFRAME.registerComponent('training-manager', {
     schema: {},
@@ -75,6 +83,7 @@ AFRAME.registerComponent('training-manager', {
         console.log('Training Manager initializing...');
         
         this.tasks = {
+            task0: false,
             task1: false,
             task2: false,
             task3: false,
@@ -83,7 +92,6 @@ AFRAME.registerComponent('training-manager', {
         
         this.hissSound = null;
         
-        // Wait for scene to be fully loaded
         if (this.el.hasLoaded) {
             this.setupListeners();
         } else {
@@ -97,7 +105,15 @@ AFRAME.registerComponent('training-manager', {
         this.el.addEventListener('meter-grabbed', this.onTask1Complete.bind(this));
         this.el.addEventListener('hazard-identified', this.onTask2Complete.bind(this));
         this.el.addEventListener('valve-turned', this.onTask3Complete.bind(this));
-        console.log('Training Manager ready - listeners attached');
+        console.log('Training Manager ready');
+    },
+    
+    onTask0Complete: function() {
+        if (!this.tasks.task0) {
+            this.tasks.task0 = true;
+            this.updateTaskUI('task-0');
+            console.log('✓ Task 0 Complete: Gutter opened');
+        }
     },
     
     onTask1Complete: function() {
@@ -123,7 +139,7 @@ AFRAME.registerComponent('training-manager', {
                 this.hissSound = hissSound;
                 hissSound.loop = true;
                 hissSound.volume = 0.6;
-                hissSound.play().catch(e => console.log('Audio play blocked:', e.message));
+                hissSound.play().catch(e => console.log('Audio blocked:', e.message));
             }
             
             console.log('✓ Task 2 Complete: Hazard identified');
@@ -177,7 +193,6 @@ AFRAME.registerComponent('training-manager', {
 
 /* ============================================
    GAS METER COMPONENT
-   Handles Task 1 completion when grabbed
    ============================================ */
 AFRAME.registerComponent('gas-meter', {
     schema: {},
@@ -185,7 +200,8 @@ AFRAME.registerComponent('gas-meter', {
     init: function() {
         this.grabbed = false;
         this.el.addEventListener('grab-start', this.onGrabStart.bind(this));
-        console.log('Gas meter component ready');
+        this.el.addEventListener('click', this.onGrabStart.bind(this));
+        console.log('Gas meter ready');
     },
     
     onGrabStart: function(evt) {
@@ -204,11 +220,10 @@ AFRAME.registerComponent('gas-meter', {
 
 /* ============================================
    HAZARD DETECTOR COMPONENT
-   Detects player proximity to hazard for Task 2
    ============================================ */
 AFRAME.registerComponent('hazard-detector', {
     schema: {
-        distance: { type: 'number', default: 1.0 }
+        distance: { type: 'number', default: 1.2 }
     },
     
     init: function() {
@@ -216,11 +231,10 @@ AFRAME.registerComponent('hazard-detector', {
         this.detected = false;
         this.checkCount = 0;
         
-        // Get camera reference
         setTimeout(() => {
             this.camera = document.querySelector('#camera');
             if (this.camera) {
-                console.log('Hazard detector found camera');
+                console.log('Hazard detector active');
             }
         }, 1000);
     },
@@ -229,7 +243,7 @@ AFRAME.registerComponent('hazard-detector', {
         if (!this.camera || this.detected) return;
         
         this.checkCount++;
-        if (this.checkCount % 15 !== 0) return; // Check every 15 frames (more frequent)
+        if (this.checkCount % 10 !== 0) return;
         
         const trainingManager = this.el.sceneEl.components['training-manager'];
         if (!trainingManager || !trainingManager.tasks.task1) return;
@@ -245,14 +259,13 @@ AFRAME.registerComponent('hazard-detector', {
         if (distance < this.data.distance) {
             this.detected = true;
             this.el.sceneEl.emit('hazard-identified');
-            console.log('→ Hazard detected at distance:', distance.toFixed(2), 'm');
+            console.log('→ Hazard detected at', distance.toFixed(2), 'm');
         }
     }
 });
 
 /* ============================================
    VALVE CONTROLLER COMPONENT
-   Handles valve rotation and Task 3/4 completion
    ============================================ */
 AFRAME.registerComponent('valve-controller', {
     schema: {
@@ -268,37 +281,64 @@ AFRAME.registerComponent('valve-controller', {
         this.el.addEventListener('grab-start', this.onGrabStart.bind(this));
         this.el.addEventListener('grab-end', this.onGrabEnd.bind(this));
         
-        console.log('Valve controller ready - needs', this.data.rotationRequired, 'degrees rotation');
+        // Also support click for desktop
+        this.el.addEventListener('click', this.onClick.bind(this));
+        this.clickRotation = 0;
+        
+        console.log('Valve ready - grab and turn or click repeatedly');
+    },
+    
+    onClick: function() {
+        if (this.completed) return;
+        
+        this.clickRotation += 45; // 45 degrees per click
+        this.totalRotation += 45;
+        
+        this.el.object3D.rotation.z = this.clickRotation * Math.PI / 180;
+        
+        console.log('Valve clicked - rotation:', this.totalRotation, '/', this.data.rotationRequired);
+        
+        if (this.totalRotation > this.data.rotationRequired * 0.5) {
+            this.el.setAttribute('material', 'color', '#ffaa00');
+        }
+        
+        if (this.totalRotation >= this.data.rotationRequired) {
+            this.completeValve();
+        }
     },
     
     onGrabStart: function() {
         this.isGrabbed = true;
-        this.lastRotation = this.el.object3D.rotation.z; // Z-axis rotation for torus
-        console.log('→ Valve grabbed - start turning...');
+        this.lastRotation = this.el.object3D.rotation.z;
+        console.log('→ Valve grabbed - turn it!');
     },
     
     onGrabEnd: function() {
         this.isGrabbed = false;
         
         if (!this.completed && this.totalRotation >= this.data.rotationRequired) {
-            this.completed = true;
-            
-            this.el.setAttribute('material', 'color', '#00ff00');
-            this.el.setAttribute('material', 'emissive', '#00ff00');
-            this.el.setAttribute('material', 'emissiveIntensity', '0.5');
-            
-            const valveSound = document.getElementById('valve-sound');
-            if (valveSound && valveSound.src) {
-                valveSound.volume = 0.8;
-                valveSound.play().catch(e => console.log('Valve sound blocked:', e.message));
-            }
-            
-            this.el.sceneEl.emit('valve-turned');
-            
-            console.log('→ Valve turned! Total rotation:', this.totalRotation.toFixed(0), 'degrees');
+            this.completeValve();
         } else if (!this.completed) {
-            console.log('Valve released - progress:', this.totalRotation.toFixed(0), '/', this.data.rotationRequired, 'degrees');
+            console.log('Valve progress:', this.totalRotation.toFixed(0), '/', this.data.rotationRequired);
         }
+    },
+    
+    completeValve: function() {
+        this.completed = true;
+        
+        this.el.setAttribute('material', 'color', '#00ff00');
+        this.el.setAttribute('material', 'emissive', '#00ff00');
+        this.el.setAttribute('material', 'emissiveIntensity', '0.5');
+        
+        const valveSound = document.getElementById('valve-sound');
+        if (valveSound && valveSound.src) {
+            valveSound.volume = 0.8;
+            valveSound.play().catch(e => console.log('Valve sound blocked'));
+        }
+        
+        this.el.sceneEl.emit('valve-turned');
+        
+        console.log('→ Valve turned completely!');
     },
     
     tick: function() {
@@ -307,31 +347,24 @@ AFRAME.registerComponent('valve-controller', {
         const currentRotation = this.el.object3D.rotation.z;
         let delta = currentRotation - this.lastRotation;
         
-        // Handle wrap-around
         if (delta > Math.PI) delta -= 2 * Math.PI;
         if (delta < -Math.PI) delta += 2 * Math.PI;
         
         this.totalRotation += Math.abs(delta) * (180 / Math.PI);
         this.lastRotation = currentRotation;
         
-        // Visual feedback at 50% completion
-        if (this.totalRotation > this.data.rotationRequired * 0.5 && this.totalRotation < this.data.rotationRequired) {
+        if (this.totalRotation > this.data.rotationRequired * 0.5) {
             this.el.setAttribute('material', 'color', '#ffaa00');
         }
     }
 });
 
-/* ============================================
-   INITIALIZATION COMPLETE
-   ============================================ */
 console.log('========================================');
-console.log('✓ Confined Space Training Simulator');
-console.log('✓ All components loaded successfully');
-console.log('✓ Collision detection active');
-console.log('✓ VR and AR ready');
+console.log('✓ Drainage Inspection Simulator Loaded');
 console.log('========================================');
-console.log('Instructions:');
-console.log('1. Grab the green gas meter');
-console.log('2. Approach the red leaking hose');
-console.log('3. Grab and turn the orange valve wheel');
+console.log('Training Steps:');
+console.log('0. Click gutter lid to open');
+console.log('1. Click gas meter');
+console.log('2. Approach the leak');
+console.log('3. Click valve 8 times or grab and turn');
 console.log('========================================');
