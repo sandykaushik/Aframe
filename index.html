@@ -1,76 +1,121 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <title>Neon Vault VR</title>
 
-<!-- Core Libraries -->
 <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/aframe-super-hands-component@5.0.3/dist/aframe-super-hands.min.js"></script>
 
 <style>
-  body { margin: 0; background: black; }
+body { margin: 0; background: black; }
 </style>
 
 <script>
-/* ===============================
+/* ==========================
+   GLOW SHADER (VISUAL UPGRADE)
+========================== */
+AFRAME.registerShader('glow', {
+  schema: {
+    color: { type: 'color', default: '#00ffff' },
+    intensity: { type: 'number', default: 1 }
+  },
+  vertexShader: `
+    varying vec3 vNormal;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 color;
+    uniform float intensity;
+    varying vec3 vNormal;
+    void main() {
+      float glow = pow(1.0 - dot(vNormal, vec3(0,0,1)), 2.0);
+      gl_FragColor = vec4(color * glow * intensity, 1.0);
+    }
+  `
+});
+
+/* ==========================
    GAME MANAGER
-================================ */
+========================== */
 AFRAME.registerComponent('game-manager', {
   init() {
-    this.collected = 0;
+    this.level = 1;
     this.time = 60;
+    this.score = 0;
     this.ui = document.querySelector('#uiText');
 
     this.timer = setInterval(() => {
       this.time--;
-      this.ui.setAttribute('value', `Energy: ${this.collected}/3  |  Time: ${this.time}`);
+      this.ui.setAttribute(
+        'value',
+        `Level ${this.level} | Time ${this.time} | Score ${this.score}`
+      );
 
       if (this.time <= 0) {
-        this.ui.setAttribute('value', 'GAME OVER');
-        clearInterval(this.timer);
+        this.gameOver();
       }
     }, 1000);
+  },
 
-    this.el.sceneEl.addEventListener('orb-collected', () => {
-      this.collected++;
-      if (this.collected === 3) {
-        document.querySelector('#portal').setAttribute('visible', true);
-      }
-    });
+  nextLevel() {
+    this.level++;
+    this.time = Math.max(30, 60 - this.level * 10);
+    this.score += 100;
+    document.querySelector('#levelText').setAttribute(
+      'value',
+      `LEVEL ${this.level}`
+    );
+  },
+
+  gameOver() {
+    clearInterval(this.timer);
+    let best = localStorage.getItem('bestScore') || 0;
+    if (this.score > best) localStorage.setItem('bestScore', this.score);
+
+    this.ui.setAttribute(
+      'value',
+      `GAME OVER\nScore: ${this.score}\nBest: ${localStorage.getItem('bestScore')}`
+    );
   }
 });
 
-/* ===============================
-   COLLECTIBLE ORB
-================================ */
+/* ==========================
+   ENERGY ORB
+========================== */
 AFRAME.registerComponent('energy-orb', {
   init() {
     this.el.addEventListener('click', () => {
-      this.el.emit('orb-collected');
+      const gm = document.querySelector('[game-manager]').components['game-manager'];
+      gm.score += 50;
+      gm.nextLevel();
       this.el.parentNode.removeChild(this.el);
     });
   }
 });
 
-/* ===============================
-   PORTAL LOGIC
-================================ */
-AFRAME.registerComponent('portal', {
-  init() {
-    this.el.addEventListener('click', () => {
-      document.querySelector('#uiText').setAttribute(
-        'value',
-        'YOU ESCAPED THE VAULT!'
-      );
-    });
+/* ==========================
+   ENEMY DRONE
+========================== */
+AFRAME.registerComponent('enemy-drone', {
+  tick(time) {
+    this.el.object3D.position.x = Math.sin(time / 500) * 1.5;
+
+    const rig = document.querySelector('#rig');
+    const d = rig.object3D.position.distanceTo(this.el.object3D.position);
+    if (d < 0.6) {
+      const gm = document.querySelector('[game-manager]').components['game-manager'];
+      gm.time -= 5;
+    }
   }
 });
 
-/* ===============================
-   FACE CAMERA
-================================ */
+/* ==========================
+   LOOK AT CAMERA
+========================== */
 AFRAME.registerComponent('look-at-camera', {
   tick() {
     this.el.object3D.lookAt(
@@ -83,75 +128,49 @@ AFRAME.registerComponent('look-at-camera', {
 
 <body>
 
-<a-scene
-  background="color: #050015"
-  fog="type: exponential; density: 0.04"
-  renderer="physicallyCorrectLights: true">
+<a-scene background="color:#050015"
+         fog="type: exponential; density:0.04">
 
-  <!-- Lighting -->
-  <a-light type="ambient" intensity="0.35"></a-light>
-  <a-light type="point" intensity="2" color="#00ffff" position="0 3 -5"></a-light>
+  <!-- Lights -->
+  <a-light type="ambient" intensity="0.3"></a-light>
 
-  <!-- Player Rig -->
-  <a-entity id="rig"
-    position="0 1.6 3"
-    movement-controls="speed: 0.04">
-
-    <a-camera
-      wasd-controls-enabled="false"
-      look-controls
-      super-hands>
-    </a-camera>
+  <!-- Player -->
+  <a-entity id="rig" position="0 1.6 3"
+    movement-controls="speed:0.04">
+    <a-camera look-controls></a-camera>
   </a-entity>
 
   <!-- Tunnel -->
-  <a-cylinder
-    radius="2"
-    height="20"
+  <a-cylinder radius="2" height="20"
     position="0 1 -7"
     rotation="90 0 0"
-    material="
-      color: #111;
-      metalness: 0.7;
-      roughness: 0.2;
-      emissive: #00ffff;
-      emissiveIntensity: 0.15;
-      side: double">
+    material="color:#111; side:double">
   </a-cylinder>
 
-  <!-- Energy Orbs -->
-  <a-sphere position="-0.8 1.5 -3" radius="0.25"
-    color="#00ffff" emissive="#00ffff"
-    energy-orb></a-sphere>
+  <!-- Enemy -->
+  <a-sphere position="0 1.6 -5" radius="0.4"
+    shader="glow"
+    enemy-drone>
+  </a-sphere>
 
-  <a-sphere position="0.8 1.2 -6" radius="0.25"
-    color="#ff00ff" emissive="#ff00ff"
-    energy-orb></a-sphere>
-
-  <a-sphere position="0 1.8 -9" radius="0.25"
-    color="#00ff00" emissive="#00ff00"
-    energy-orb></a-sphere>
-
-  <!-- Exit Portal -->
-  <a-ring id="portal"
-    visible="false"
-    position="0 1.6 -12"
-    radius-inner="0.7"
-    radius-outer="1.2"
+  <!-- Orb -->
+  <a-sphere position="0 1.8 -9" radius="0.3"
     color="#00ffff"
     emissive="#00ffff"
-    portal>
-  </a-ring>
+    energy-orb>
+  </a-sphere>
 
   <!-- UI -->
-  <a-entity position="0 2.5 -1" look-at-camera>
-    <a-text id="uiText"
-      value="Energy: 0/3 | Time: 60"
-      align="center"
-      color="#00ffff"
-      width="4">
+  <a-entity position="0 2.6 -1" look-at-camera>
+    <a-text id="uiText" value="Level 1 | Time 60 | Score 0"
+      align="center" color="#00ffff" width="4">
     </a-text>
   </a-entity>
+
+  <a-text id="levelText" position="0 3 -1"
+    look-at-camera value="LEVEL 1"
+    color="#ff00ff">
+  </a-text>
 
   <a-entity game-manager></a-entity>
 
